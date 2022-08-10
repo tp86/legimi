@@ -1,0 +1,4 @@
+{:deps {clj-http/clj-http {:mvn/version "3.12.3"}}
+ :aliases {:build {:deps {io.github.clojure/tools.build {:git/tag "v0.8.3" :git/sha "0d20256"}}
+                   :ns-default build}
+           :run {:main-opts ["-m" "legimi.core"]}}}
