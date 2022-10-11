@@ -1,0 +1,20 @@
+{
+  "Lua": {
+    "runtime": {
+      "version": "Lua 5.4",
+      "path": [
+        "src/?.lua",
+        "src/?/init.lua",
+        "./.luarocks/share/lua/5.4/?.lua"
+      ]
+    },
+    "diagnostics": {
+      "disable": ["redefined-local"]
+    },
+    "workspace": {
+      "library": [
+        "./.luarocks/share/lua/5.4"
+      ]
+    }
+  }
+}

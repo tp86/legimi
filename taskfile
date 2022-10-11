@@ -1,0 +1,30 @@
+#!/bin/bash
+
+luaversion="5.4"
+depsfile="deps.txt"
+luarockstree=".luarocks"
+luarocksflags="--lua-version ${luaversion} --tree ${luarockstree}"
+luarocks="luarocks ${luarocksflags}"
+srcdir="src"
+luasetup="local dirs = { [[${srcdir}]] }
+          local paths = {}
+          for _,dir in ipairs(dirs) do
+            paths[#paths + 1] = dir .. [[/?.lua]]
+            paths[#paths + 1] = dir .. [[/?/init.lua]]
+          end
+          package.path = table.concat(paths, [[;]]) .. [[;]] .. package.path
+"
+
+function deps {
+  ${luarocks} install $(cat ${depsfile})
+}
+
+function run {
+  eval $(${luarocks} path)
+  lua -e "${luasetup}" ${srcdir}/legimi.lua $@
+}
+
+task="$1"
+shift
+
+${task:-run} $@
