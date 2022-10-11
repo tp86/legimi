@@ -4,7 +4,8 @@
       "version": "Lua 5.4",
       "path": [
         "src/?.lua",
-        "src/?/init.lua"
+        "src/?/init.lua",
+        "./.luarocks/share/lua/5.4/?.lua"
       ]
     },
     "diagnostics": {
@@ -12,7 +13,7 @@
     },
     "workspace": {
       "library": [
-        ".luarocks/share/lua/5.4/"
+        "./.luarocks/share/lua/5.4"
       ]
     }
   }

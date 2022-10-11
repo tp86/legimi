@@ -1,4 +1,20 @@
-local http = require('http.request')
+local function newrequest(url, method)
+  local request = require('http.request').new_from_uri(url)
+  request.setbody = function(req, body)
+    req:set_body(body)
+    return req
+  end
+  request.send = function(req)
+    local _, stream = req:go()
+    stream.getbody = stream.get_body_as_string
+    stream.savetofile = stream.save_body_to_file
+    return stream
+  end
+  if method then
+    request.headers:upsert(':method', method)
+  end
+  return request
+end
 
 local function getbookids()
   local bookids = {}
@@ -23,7 +39,7 @@ end
 local url = 'https://app.legimi.pl/svc/sync/core.aspx'
 local version = '1.3.4 Windows'
 
-local function printbs(s)
+local function printbs(s) ---@diagnostic disable-line: unused-local, unused-function
   for b = 1, #s, 16 do
     local chunk = table.pack(s:byte(b, b + 15))
     local len = #chunk
@@ -38,129 +54,110 @@ local function ntobytes(n, bytes)
 end
 
 local function part(n, content)
-  return {
+  return table.concat {
     ntobytes(n, 2),
     ntobytes(#content),
     content,
   }
 end
 
-local function makerequestdata(dataparts, withlength)
-  local partsbytes = {}
-  for _, part in ipairs(dataparts) do
-    if type(part) == 'table' then
-      part = table.concat(part)
-    end
-    partsbytes[#partsbytes + 1] = part
+local function parseresponseparts(responseparts)
+  local function splitafter(s, n)
+    return s:sub(1, n), s:sub(n + 1)
   end
-  if withlength then
-    return table.concat {
-      ntobytes(#dataparts, 2),
-      table.unpack(partsbytes),
-    }
-  else
-    return table.concat(partsbytes)
-  end
-end
 
-local function parseresponse(responseparts)
-  local numberofparts = string.unpack("<i2", string.sub(responseparts, 1, 2))
-  responseparts = string.sub(responseparts, 3)
-  local parts = {}
+  local function unpackin(from, n)
+    local field, rest = splitafter(from, n)
+    return string.unpack('<i' .. n, field), rest
+  end
+
   local function parsepart(parts)
-    local partnumber = string.unpack("<i2", parts)
-    local length = string.unpack("<i4", string.sub(parts, 3))
-    local content = string.sub(parts, 7, 6 + length)
-    return partnumber, content, 6 + length
+    local partnumber, rest = unpackin(parts, 2)
+    local length, rest = unpackin(rest, 4)
+    local content, rest = splitafter(rest, length)
+    return partnumber, content, rest
   end
 
+  local numberofparts, rest = unpackin(responseparts, 2)
+  local parts = {}
   for _ = 1, numberofparts do
-    local partnumber, content, consumed = parsepart(responseparts)
-    responseparts = string.sub(responseparts, consumed + 1)
+    local partnumber, content
+    partnumber, content, rest = parsepart(rest)
     parts[partnumber] = content
   end
   return parts
 end
 
-local function send(requestdata)
-  local request = http.new_from_uri(url)
-  request.headers:upsert(':method', 'POST')
-  request:set_body(requestdata)
-  local headers, stream = request:go()
-  assert(headers:get(':status') == '200', 'request failed')
-  return stream
-end
-
 local function gettoken(login, password)
+  local parts = {
+    part(4, string.rep('\x00', 4)),
+    part(2, '\x57\xc1\x1b\x00\x00\x00\x00\x00'),
+    part(3, version),
+    part(1, password),
+    part(0, login),
+    part(5, string.rep('\x00', 8)),
+  }
   local requestdata = table.concat {
     '\x11\x00\x00\x00\x50\x00\x62\x00\x00\x00',
-    makerequestdata({
-      part(4, string.rep('\x00', 4)),
-      part(2, '\x57\xc1\x1b\x00\x00\x00\x00\x00'),
-      part(3, version),
-      part(1, password),
-      part(0, login),
-      part(5, string.rep('\x00', 8)),
-    }, true)
+    ntobytes(#parts, 2),
+    table.unpack(parts),
   }
 
-  local stream = send(requestdata)
-  local response = stream:get_body_as_string()
-  return parseresponse(response:sub(11))[7]
+  local request = newrequest(url, 'POST'):setbody(requestdata)
+  local parsedresponse = parseresponseparts(request:send():getbody():sub(11))
+  return parsedresponse[7]
+end
+
+local function getbookdetails(token, bookid)
+  local requestdata = table.concat {
+    '\x11\x00\x00\x00\xc8\x00\x40\x00\x00\x00',
+    ntobytes(bookid, 8),
+    part(2, ''),
+    '\x00\x00',
+    token,
+    '\x00\x00',
+    string.rep('\xff', 8),
+    part(1, ''),
+  }
+
+  local request = newrequest(url, 'POST'):setbody(requestdata)
+  local parsedresponse = parseresponseparts(request:send():getbody():sub(21))
+  return parsedresponse[0], --[[url]]
+      string.unpack('<i8', parsedresponse[2]) --[[size]]
+end
+
+local function multipartdownload(url, size, outputfile)
+  local partsize = 81920
+  local function getrange(from, length)
+    return from, math.min(from + partsize, length) - 1
+  end
+
+  ---@diagnostic disable-next-line: unbalanced-assignments
+  local from, to = 0
+  repeat
+    from, to = getrange(from, size)
+    local chunksize = to - from + 1
+    local request = newrequest(url)
+    request.headers:append('range', string.format('bytes=%d-%d', from, to))
+    request:send():savetofile(outputfile)
+    --outputfile:write(request:send():getbody())
+    io.output():write('.'):flush()
+    from = to + 1
+  until chunksize < partsize
 end
 
 local function downloadbook(token, bookid)
-  local requestdata = table.concat {
-    '\x11\x00\x00\x00\xc8\x00\x40\x00\x00\x00',
-    makerequestdata {
-      ntobytes(bookid, 8),
-      part(2, ''),
-      '\x00\x00',
-      token,
-      '\x00\x00',
-      string.rep('\xff', 8),
-      part(1, ''),
-    }
-  }
-
-  local stream = send(requestdata)
-  local response = stream:get_body_as_string()
-  local responseparts = parseresponse(response:sub(21))
-
-  local downloadsize, downloadurl = string.unpack("<i8", responseparts[2]), responseparts[0]
-
-  local function getrange(from, length)
-    return from, math.min(from + 81920, length) - 1
-  end
-
-  local file = assert(io.open(bookid .. '.mobi', 'w+'))
-  local from = 0
-  io.write('Downloading book ' .. bookid .. ' ')
-  io.flush()
-  repeat
-    local to
-    from, to = getrange(from, downloadsize)
-    local chunksize = to - from + 1
-    local request = http.new_from_uri(downloadurl)
-    request.headers:append('range', string.format('bytes=%d-%d', from, to))
-    local headers, stream = request:go()
-    assert(headers:get(':status') == '200', 'download part failed')
-    local response = stream:get_body_as_string()
-    file:write(response)
-    io.write('.')
-    io.flush()
-    from = to + 1
-  until chunksize < 81920
-  file:close()
-  io.write(' ok\n')
-  io.flush()
+  local downloadurl, downloadsize = getbookdetails(token, bookid)
+  local file <close>              = assert(io.open(bookid .. '.mobi', 'w+'))
+  io.output():write('Downloading book ' .. bookid .. ' '):flush()
+  multipartdownload(downloadurl, downloadsize, file)
+  io.output():write(' ok\n'):flush()
 end
 
 local login = getlogin()
 local pass = getpass()
-local token = gettoken(login, pass)
-
 local bookids = getbookids()
+local token = gettoken(login, pass)
 for _, bookid in ipairs(bookids) do
   downloadbook(token, bookid)
 end
