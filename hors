@@ -1,0 +1,80 @@
+#!/usr/bin/env lua
+
+local luaversion = string.match(_VERSION, "Lua (.+)$")
+local luarocksdir = ".rocks"
+
+local function execwithparams(cmd, args)
+  args = args or {}
+  local command = {
+    cmd,
+    table.unpack(args)
+  }
+  os.execute(table.concat(command, " "))
+end
+
+local function luarockscmd(cmd)
+  return luarocksdir .. "/bin/" .. cmd
+end
+
+local function run(commands)
+  local command = arg[1]
+  local cmd = commands[command]
+  if cmd then
+    local cmdargs = table.pack(select(2, table.unpack(arg)))
+    cmd(cmdargs)
+  else
+    print("Unknown command: `" .. command .. "`")
+  end
+end
+
+--------------------------------------------------------------------------------
+
+local function installdeps(deps)
+  print("Installing dependencies")
+  for _, dep in ipairs(deps) do
+    execwithparams("luarocks", {
+      "--lua-version", luaversion,
+      "--tree", luarocksdir,
+      "install",
+      dep
+    })
+  end
+end
+
+local function clearcoverage()
+  execwithparams("rm", { "-fr", "luacov.*" })
+end
+
+local function coveragereport()
+  -- generate
+  execwithparams(luarockscmd("luacov"))
+  -- display
+  execwithparams("sed", {
+    "-En",
+    "'/File\\s+Hits\\s+Missed\\s+Coverage/,$p'",
+    "luacov.report.out"
+  })
+end
+
+local function test(args)
+  clearcoverage()
+  execwithparams(luarockscmd("busted"), args)
+  coveragereport()
+end
+
+local devdeps = { "busted", "luacov" }
+local ok, deps = pcall(require, "deps")
+if not ok then
+  deps = {}
+end
+local commands = {
+  deps = function() installdeps(deps) end,
+  devdeps = function() installdeps(devdeps) end,
+  test = function(args) test(args) end,
+}
+
+--------------------------------------------------------------------------------
+
+run(commands)
+
+-- vim:ft=lua

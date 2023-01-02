@@ -1,0 +1,7 @@
+return {
+  _all = {
+    coverage = true
+  }
+}
+
+-- vim:ft=lua
