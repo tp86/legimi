@@ -58,6 +58,8 @@ end
 
 local function test(args)
   clearcoverage()
+  table.insert(args, "--exclude-tags")
+  table.insert(args, "live")
   execwithparams(luarockscmd("busted"), args)
   coveragereport()
 end

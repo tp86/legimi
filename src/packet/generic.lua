@@ -4,7 +4,7 @@ local serializer = require "serializer"
 local packetfmt = {
   serializer.int,
   serializer.short,
-  serializer.lenstr,
+  serializer.lenstr
 }
 
 local function makepacket(type, content)
