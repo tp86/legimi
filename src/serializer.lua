@@ -34,6 +34,33 @@ local function lenstr(value, unpacking)
 end
 
 local formatters = {}
+
+local function dict(format)
+  return function(data, unpacking)
+    local function extendtbl(tbl, other)
+      for _, value in ipairs(other) do
+        table.insert(tbl, value)
+      end
+    end
+
+    local function extend2tbl(tbl1, tbl2, other1, other2)
+      extendtbl(tbl1, other1)
+      extendtbl(tbl2, other2)
+    end
+
+    local count = 0
+    local fmt, dt = {}, {}
+    for key, value in pairs(data) do
+      local formatter = formatters[format[key]]
+      extend2tbl(fmt, dt, formatter(value))
+      count = count + 1
+    end
+    extend2tbl(fmt, dt, formatters.short(count))
+    -- TODO return length
+    return fmt, dt
+  end
+end
+
 formatters.short = numberformatter(2)
 formatters.int = numberformatter(4)
 formatters.long = numberformatter(8)
@@ -41,10 +68,19 @@ formatters.str = str
 formatters.lenint = withlen(formatters.int)
 formatters.lenlong = withlen(formatters.long)
 formatters.lenstr = lenstr
+formatters.dict = dict
 
 local function pack(value, format)
+  local function getformatter(f)
+    if type(f) == "function" then
+      return f
+    else
+      return formatters[f]
+    end
+  end
+
   format = format or (type(value) == "string" and "str" or "int")
-  local formatter = formatters[format]
+  local formatter = getformatter(format)
   local fmt, data = formatter(value)
   table.insert(fmt, 1, "<")
   return string.pack(table.concat(fmt), table.unpack(data))
@@ -60,30 +96,6 @@ local function unpack(value, format)
   return table.unpack(unpacked)
 end
 
-local function dict(data, format)
-  local function extendtbl(tbl, other)
-    for _, value in ipairs(other) do
-      table.insert(tbl, value)
-    end
-  end
-
-  local function extend2tbl(tbl1, tbl2, other1, other2)
-    extendtbl(tbl1, other1)
-    extendtbl(tbl2, other2)
-  end
-
-  local count = 0
-  local fmt, dt = {}, {}
-  for key, value in pairs(data) do
-    local formatter = formatters[format[key]]
-    extend2tbl(fmt, dt, formatter(value))
-    count = count + 1
-  end
-  extend2tbl(fmt, dt, formatters.short(count))
-  table.insert(fmt, 1, "<")
-  return string.pack(table.concat(fmt), table.unpack(dt))
-end
-
 return {
   int = "int",
   lenint = "lenint",
@@ -92,8 +104,8 @@ return {
   lenlong = "lenlong",
   str = "str",
   lenstr = "lenstr",
+  dict = formatters.dict,
   pack = pack,
   unpack = unpack,
-  dict = dict,
 }
 

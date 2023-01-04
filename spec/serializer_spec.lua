@@ -46,7 +46,7 @@ describe("serializer", function()
     it("can serialize empty dictionary", function()
       local data = {}
       local expected = "\x00\x00"
-      local serialized = serializer.dict(data, format)
+      local serialized = serializer.pack(data, serializer.dict(format))
       assert.equal(expected, serialized)
     end)
   end)
