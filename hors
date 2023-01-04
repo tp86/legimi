@@ -64,6 +64,10 @@ local function test(args)
   coveragereport()
 end
 
+local function coveragefullreport()
+  execwithparams("cat luacov.report.out")
+end
+
 local devdeps = { "busted", "luacov" }
 local ok, deps = pcall(require, "deps")
 if not ok then
@@ -73,6 +77,7 @@ local commands = {
   deps = function() installdeps(deps) end,
   devdeps = function() installdeps(devdeps) end,
   test = function(args) test(args) end,
+  cov = function(args) coveragefullreport(args) end,
 }
 
 --------------------------------------------------------------------------------
