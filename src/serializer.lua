@@ -1,66 +1,24 @@
-local lengthbytes = 4
-local packdict, unpackdict
-local formats = {
-  str = "s4",
-  count = "i2",
-  int = "I" .. lengthbytes .. "i4",
-  long = "I" .. lengthbytes .. "i8",
-  dict = function(format)
-    return {
-      function(data) return packdict(data, format) end,
-      function(data) return unpackdict(data, format) end,
-    }
-  end,
-}
-
-local function getlen(format)
-  return tonumber(format:sub(#format))
-end
-
-local function withlen(format)
-  return format:sub(1, 2) == "I4"
-end
-
 local pack
 
-local function handlecompound(data, format, direction)
-  if #format == 2 and type(format[1]) == "function" and type(format[2]) == "function" then
-    return format[direction](data)
-  else
-    -- handle lua sequence
-    local packed = ""
-    for i, value in ipairs(data) do
-      local packedvalue = pack(value, format[i])
-      packed = packed .. packedvalue
-    end
-    return packed
+local function packseq(data, format)
+  local packed = ""
+  for i, value in ipairs(data) do
+    local packedvalue = pack(value, format[i])
+    packed = packed .. packedvalue
   end
+  return packed
 end
 
-pack = function(value, format)
-  if type(format) == "table" then
-    return handlecompound(value, format, 1)
-  else
-    if not format then
-      if type(value) == "string" then
-        format = formats.str
-      else
-        format = formats.int
-      end
-    end
-    local data = { value }
-    if withlen(format) then
-      table.insert(data, 1, getlen(format))
-    end
-    return string.pack(format, table.unpack(data))
-  end
-end
+local formats = {
+  key = "i2",
+  count = "i2",
+}
 
-packdict = function(data, format)
+local function packdict(data, format)
   local count = 0
   local packed = ""
   for key, value in pairs(data) do
-    local packedkey = pack(key, formats.count)
+    local packedkey = pack(key, formats.key)
     local packedvalue = pack(value, format[key])
     packed = packed .. packedkey .. packedvalue
     count = count + 1
@@ -69,28 +27,9 @@ packdict = function(data, format)
   return packedcount .. packed
 end
 
-local function unpack(data, format)
-  if type(format) == "table" then
-    return handlecompound(data, format, 2)
-  else
-    local function strip(...)
-      local function handlelength(values)
-        if withlen(format) then
-          table.remove(values, 1)
-        end
-      end
+local unpack
 
-      local values = table.pack(...)
-      handlelength(values)
-      --table.remove(values)
-      return table.unpack(values)
-    end
-
-    return strip(string.unpack(format, data))
-  end
-end
-
-unpackdict = function(data, format)
+local function unpackdict(data, format)
   local totalread = 0
   local subdata = data
   local function advance(read)
@@ -110,6 +49,85 @@ unpackdict = function(data, format)
     unpacked[key] = value
   end
   return unpacked, totalread
+end
+
+local directions = {
+  pack = 1,
+  unpack = 2,
+}
+
+local sequence = {
+  [directions.pack] = packseq,
+  --[directions.unpack] = unpackseq,
+}
+
+formats.str = "s4"
+formats.count = "i2"
+
+local lengthbytes = 4
+local lengthformat = "I" .. lengthbytes
+local function getlen(format)
+  return tonumber(format:sub(#lengthformat + 2))
+end
+local function withlen(format)
+  return format:sub(1, 2) == lengthformat
+end
+
+formats.int = lengthformat .. "i4"
+formats.long = lengthformat .. "i8"
+formats.dict = function(format)
+  return {
+    [directions.pack] = function(data) return packdict(data, format) end,
+    [directions.unpack] = function(data) return unpackdict(data, format) end,
+  }
+end
+
+local function handlecompound(data, format, direction)
+  if #format == 2 and type(format[1]) == "function" and type(format[2]) == "function" then
+    return format[direction](data)
+  else
+    return sequence[direction](data, format)
+  end
+end
+
+pack = function(value, format)
+  if type(format) == "table" then
+    return handlecompound(value, format, directions.pack)
+  else
+    if not format then
+      if type(value) == "string" then
+        format = formats.str
+      else
+        format = formats.int
+      end
+    end
+    local data = { value }
+    if withlen(format) then
+      table.insert(data, 1, getlen(format))
+    end
+    return string.pack(format, table.unpack(data))
+  end
+end
+
+unpack = function(data, format)
+  if type(format) == "table" then
+    return handlecompound(data, format, directions.unpack)
+  else
+    local function strip(...)
+      local function handlelength(values)
+        if withlen(format) then
+          table.remove(values, 1)
+        end
+      end
+
+      local values = table.pack(...)
+      handlelength(values)
+      --table.remove(values)
+      return table.unpack(values)
+    end
+
+    return strip(string.unpack(format, data))
+  end
 end
 
 return {
