@@ -24,13 +24,13 @@ local function makeauthreq(login, password, deviceid)
     [fields.deviceid] = deviceid,
     [fields.appversion] = req.constants.appversion,
   }
-  local fmt = {
+  local fmt = serializer.dict {
     [fields.user] = serializer.str,
     [fields.password] = serializer.str,
     [fields.deviceid] = serializer.long,
     [fields.appversion] = serializer.str,
   }
-  local content = serializer.pack(serializer.dictionary(fmt, data))
+  local content = serializer.pack(data, fmt)
   return packet.make(req.type, content)
 end
 

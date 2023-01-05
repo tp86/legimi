@@ -1,90 +1,139 @@
 ---@diagnostic disable: undefined-global
-
-local serializer = require "serializer"
-
 describe("serializer", function()
 
-  describe("simple", function()
+  local serializer = require "serializer"
 
-    local function test(data, expected, format)
-      return function()
-        local serialized = serializer.pack(data, format)
-        assert.equal(expected, serialized)
-      end
-    end
+  describe("serializes", function()
 
-    it("can serialize 4 bytes integer value without explicit serializer",
-      test(0x14, "\x14\x00\x00\x00"))
+    describe("a string with length", function()
 
-    it("can serialize 4 bytes integer value given explicit serializer",
-      test(0x24, "\x24\x00\x00\x00", serializer.int))
+      it("without explicit format", function()
+        local data = "abc"
+        local expected = "\x03\x00\x00\x00abc"
+        local actual = serializer.pack(data)
+        assert.equal(expected, actual)
+      end)
 
-    it("can serialize 4 bytes integer value preceded by length",
-      test(0x34, "\x04\x00\x00\x00\x34\x00\x00\x00", serializer.lenint))
+      it("with explicit format", function()
+        local data = "abc"
+        local format = serializer.str
+        local expected = "\x03\x00\x00\x00abc"
+        local actual = serializer.pack(data, format)
+        assert.equal(expected, actual)
+      end)
+    end)
 
-    it("can serialize 2 bytes integer value given serializer",
-      test(0x12, "\x12\x00", serializer.short))
+    describe("a 4-byte integer with length", function()
 
-    it("can serialize 8 bytes integer value given explicit serializer",
-      test(0x18, "\x18\x00\x00\x00\x00\x00\x00\x00", serializer.long))
+      it("without explicit format", function()
+        local data = 0x11001100
+        local expected = "\x04\x00\x00\x00\x00\x11\x00\x11"
+        local actual = serializer.pack(data)
+        assert.equal(expected, actual)
+      end)
 
-    it("can serialize 8 bytes integer value preceded by length",
-      test(0x28, "\x08\x00\x00\x00\x28\x00\x00\x00\x00\x00\x00\x00", serializer.lenlong))
+      it("with explicit format", function()
+        local data = 0x12001200
+        local format = serializer.int
+        local expected = "\x04\x00\x00\x00\x00\x12\x00\x12"
+        local actual = serializer.pack(data, format)
+        assert.equal(expected, actual)
+      end)
+    end)
 
-    it("can serialize string",
-      test("abc", "abc"))
+    describe("a 2-byte count without length", function()
 
-    it("can serialize string given explicit serializer",
-      test("abc", "abc", serializer.str))
+      it("with explicit format", function()
+        local data = 6
+        local format = serializer.count
+        local expected = "\x06\x00"
+        local actual = serializer.pack(data, format)
+        assert.equal(expected, actual)
+      end)
+    end)
 
-    it("can serialize string preceded by length",
-      test("abc", "\x03\x00\x00\x00abc", serializer.lenstr))
-  end)
+    describe("a dict with numeric keys", function()
 
-  describe("dictionary", function()
+      it("with explicit format", function()
+        local data = { [0] = 15, [2] = "abc" }
+        local format = serializer.dict { [0] = serializer.int, [1] = serializer.str, [2] = serializer.str }
+        local expected = {
+          header = "\x02\x00",
+          "\x00\x00\x04\x00\x00\x00\x0f\x00\x00\x00",
+          "\x02\x00\x03\x00\x00\x00abc",
+        }
+        local actual = serializer.pack(data, format)
+        local expectedsize = #expected.header
+        assert.equal(expected.header, actual:sub(1, #expected.header))
+        for _, expecteditem in ipairs(expected) do
+          assert.is_truthy(string.find(actual:sub(#expected.header + 1), expecteditem))
+          expectedsize = expectedsize + #expecteditem
+        end
+        assert.equal(expectedsize, #actual)
+      end)
 
-    it("can serialize empty dictionary", function()
-      local data = {}
-      local expected = "\x00\x00"
-      local serialized = serializer.pack(data, serializer.dict(format))
-      assert.equal(expected, serialized)
+      it("nested", function()
+        local data = { [0] = { [2] = "abc"} }
+        local format = serializer.dict { [0] = serializer.dict { [2] = serializer.str } }
+        local expected = "\x01\x00\x00\x00\x01\x00\x02\x00\x03\x00\x00\x00abc"
+        local actual = serializer.pack(data, format)
+        assert.equal(expected, actual)
+      end)
     end)
   end)
-end)
 
-describe("deserializer", function()
+  describe("deserializes", function()
 
-  describe("simple", function()
+    describe("a string with length", function()
 
-    local function test(serialized, expected, format)
-      return function()
-        local deserialized = { serializer.unpack(serialized, format) }
-        assert.same(expected, deserialized)
-      end
-    end
+      it("with explicit format", function()
+        local data = "\x03\x00\x00\x00abc"
+        local format = serializer.str
+        local expected = "abc"
+        local actual = serializer.unpack(data, format)
+        assert.equal(expected, actual)
+      end)
+    end)
 
-    it("can deserialize 4 bytes integer value",
-      test("\x31\x00\x00\x00", { 0x31 }))
+    describe("a 4-byte integer with length", function()
 
-    it("can deserialize 4 bytes integer value given explicit serializer",
-      test("\x32\x00\x00\x00", { 0x32 }, serializer.int))
+      it("with explicit format", function()
+        local data = "\x04\x00\x00\x00\x00\x12\x00\x12"
+        local format = serializer.int
+        local expected = 0x12001200
+        local actual = serializer.unpack(data, format)
+        assert.equal(expected, actual)
+      end)
+    end)
 
-    it("can deserialize 4 bytes integer value preceded by length",
-      test("\x04\x00\x00\x00\x33\x00\x00\x00", { 4, 0x33 }, serializer.lenint))
+    describe("a 2-byte count without length", function()
 
-    it("can deserialize 2 bytes integer value",
-      test("\x41\x00", { 0x41 }, serializer.short))
+      it("with explicit format", function()
+        local data = "\xff\x00"
+        local format = serializer.count
+        local expected = 255
+        local actual = serializer.unpack(data, format)
+        assert.equal(expected, actual)
+      end)
+    end)
 
-    it("can deserialize 8 bytes integer value given explicit serializer",
-      test("\x18\x00\x00\x00\x00\x00\x00\x00", { 0x18 }, serializer.long))
+    describe("a dict with numeric keys", function()
 
-    it("can deserialize 8 bytes integer value preceded by length",
-      test("\x08\x00\x00\x00\x28\x00\x00\x00\x00\x00\x00\x00", { 8, 0x28 }, serializer.lenlong))
+      it("with explicit format", function()
+        local data = "\x02\x00\x00\x00\x04\x00\x00\x00\x0f\x00\x00\x00\x02\x00\x03\x00\x00\x00abc"
+        local format = serializer.dict { [0] = serializer.int, [1] = serializer.str, [2] = serializer.str }
+        local expected = { [0] = 15, [2] = "abc" }
+        local actual = serializer.unpack(data, format)
+        assert.same(expected, actual)
+      end)
 
-    it("can deserialize string given explicit serializer",
-      test("abc", { "abc" }, serializer.str))
-
-    it("can deserialize string preceded by length",
-      test("\x03\x00\x00\x00abc", { 3, "abc" }, serializer.lenstr))
+      it("nested", function()
+        local data = "\x01\x00\x00\x00\x01\x00\x02\x00\x03\x00\x00\x00abc"
+        local format = serializer.dict { [0] = serializer.dict { [2] = serializer.str } }
+        local expected = { [0] = { [2] = "abc"} }
+        local actual = serializer.unpack(data, format)
+        assert.same(expected, actual)
+      end)
+    end)
   end)
 end)

@@ -2,9 +2,9 @@ local protocolversion = 17
 local serializer = require "serializer"
 
 local packetfmt = {
-  serializer.int,
-  serializer.short,
-  serializer.lenstr
+  "i4",
+  "i2",
+  serializer.str,
 }
 
 local function makepacket(type, content)

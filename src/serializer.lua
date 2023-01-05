@@ -1,111 +1,123 @@
-local function makeformatter(fmt, length)
-  return function(value)
-    local format = { fmt, length }
-    local data = { value }
-    return format, data, length
+local lengthbytes = 4
+local packdict, unpackdict
+local formats = {
+  str = "s4",
+  count = "i2",
+  int = "I" .. lengthbytes .. "i4",
+  long = "I" .. lengthbytes .. "i8",
+  dict = function(format)
+    return {
+      function(data) return packdict(data, format) end,
+      function(data) return unpackdict(data, format) end,
+    }
+  end,
+}
+
+local function getlen(format)
+  return tonumber(format:sub(#format))
+end
+
+local function withlen(format)
+  return format:sub(1, 2) == "I4"
+end
+
+local pack
+
+local function handlecompound(data, format, direction)
+  if #format == 2 and type(format[1]) == "function" and type(format[2]) == "function" then
+    return format[direction](data)
+  else
+    -- handle lua sequence
+    local packed = ""
+    for i, value in ipairs(data) do
+      local packedvalue = pack(value, format[i])
+      packed = packed .. packedvalue
+    end
+    return packed
   end
 end
 
-local function withlen(formatter)
-  return function(value)
-    local format, data, length = formatter(value)
-    table.insert(format, #format - 1, "I4")
-    table.insert(data, #data, length)
-    return format, data, length + 4
-  end
-end
-
-local function numberformatter(length)
-  return makeformatter("i", length)
-end
-
-local function str(value)
-  return makeformatter("c", #value)(value)
-end
-
-local function lenstr(value, unpacking)
-  local format, data, length = withlen(str)(value)
-  if unpacking then
-    table.insert(format, table.remove(format) - 4)
-    table.remove(data, 1)
-    length = length - 4
-  end
-  return format, data, length
-end
-
-local formatters = {}
-
-local function dict(format)
-  return function(data, unpacking)
-    local function extendtbl(tbl, other)
-      for _, value in ipairs(other) do
-        table.insert(tbl, value)
+pack = function(value, format)
+  if type(format) == "table" then
+    return handlecompound(value, format, 1)
+  else
+    if not format then
+      if type(value) == "string" then
+        format = formats.str
+      else
+        format = formats.int
       end
     end
-
-    local function extend2tbl(tbl1, tbl2, other1, other2)
-      extendtbl(tbl1, other1)
-      extendtbl(tbl2, other2)
+    local data = { value }
+    if withlen(format) then
+      table.insert(data, 1, getlen(format))
     end
-
-    local count = 0
-    local fmt, dt = {}, {}
-    for key, value in pairs(data) do
-      local formatter = formatters[format[key]]
-      extend2tbl(fmt, dt, formatter(value))
-      count = count + 1
-    end
-    extend2tbl(fmt, dt, formatters.short(count))
-    -- TODO return length
-    return fmt, dt
+    return string.pack(format, table.unpack(data))
   end
 end
 
-formatters.short = numberformatter(2)
-formatters.int = numberformatter(4)
-formatters.long = numberformatter(8)
-formatters.str = str
-formatters.lenint = withlen(formatters.int)
-formatters.lenlong = withlen(formatters.long)
-formatters.lenstr = lenstr
-formatters.dict = dict
-
-local function pack(value, format)
-  local function getformatter(f)
-    if type(f) == "function" then
-      return f
-    else
-      return formatters[f]
-    end
+packdict = function(data, format)
+  local count = 0
+  local packed = ""
+  for key, value in pairs(data) do
+    local packedkey = pack(key, formats.count)
+    local packedvalue = pack(value, format[key])
+    packed = packed .. packedkey .. packedvalue
+    count = count + 1
   end
-
-  format = format or (type(value) == "string" and "str" or "int")
-  local formatter = getformatter(format)
-  local fmt, data = formatter(value)
-  table.insert(fmt, 1, "<")
-  return string.pack(table.concat(fmt), table.unpack(data))
+  local packedcount = pack(count, formats.count)
+  return packedcount .. packed
 end
 
-local function unpack(value, format)
-  format = format or "int"
-  local formatter = formatters[format]
-  local fmt = formatter(value, true)
-  table.insert(fmt, 1, "<")
-  local unpacked = table.pack(string.unpack(table.concat(fmt), value))
-  table.remove(unpacked, unpacked.n)
-  return table.unpack(unpacked)
+local function unpack(data, format)
+  if type(format) == "table" then
+    return handlecompound(data, format, 2)
+  else
+    local function strip(...)
+      local function handlelength(values)
+        if withlen(format) then
+          table.remove(values, 1)
+        end
+      end
+
+      local values = table.pack(...)
+      handlelength(values)
+      --table.remove(values)
+      return table.unpack(values)
+    end
+
+    return strip(string.unpack(format, data))
+  end
+end
+
+unpackdict = function(data, format)
+  local totalread = 0
+  local subdata = data
+  local function advance(read)
+    totalread = totalread + read
+    subdata = subdata:sub(read)
+  end
+
+  local unpacked = {}
+  local count, from = string.unpack(formats.count, subdata)
+  advance(from)
+  for _ = 1, count do
+    ---@diagnostic disable-next-line: redefined-local
+    local key, from = string.unpack(formats.count, subdata)
+    advance(from)
+    local value, read = unpack(subdata, format[key])
+    advance(read)
+    unpacked[key] = value
+  end
+  return unpacked, totalread
 end
 
 return {
-  int = "int",
-  lenint = "lenint",
-  short = "short",
-  long = "long",
-  lenlong = "lenlong",
-  str = "str",
-  lenstr = "lenstr",
-  dict = formatters.dict,
+  str = formats.str,
+  int = formats.int,
+  long = formats.long,
+  count = formats.count,
+  dict = formats.dict,
   pack = pack,
   unpack = unpack,
 }
-
