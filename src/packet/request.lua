@@ -1,19 +1,24 @@
-local requests = {
-  auth = {
-    type = 80,
-    fields = {
-      user = 0,
-      password = 1,
-      deviceid = 2,
-      appversion = 3,
-    },
-    constants = {
-      appversion = "1.5.0 Windows",
-    },
+local serializer = require "serializer"
+local requests = {}
+requests.auth = {
+  type = 80,
+  fields = {
+    user = 0,
+    password = 1,
+    deviceid = 2,
+    appversion = 3,
+  },
+  constants = {
+    appversion = "1.5.0 Windows",
   },
 }
+requests.auth.format = serializer.dict {
+  [requests.auth.fields.user] = serializer.str,
+  [requests.auth.fields.password] = serializer.str,
+  [requests.auth.fields.deviceid] = serializer.lenlong,
+  [requests.auth.fields.appversion] = serializer.str,
+}
 local packet = require "packet.generic"
-local serializer = require "serializer"
 
 local function makeauthreq(login, password, deviceid)
   local req = requests.auth
@@ -24,13 +29,7 @@ local function makeauthreq(login, password, deviceid)
     [fields.deviceid] = deviceid,
     [fields.appversion] = req.constants.appversion,
   }
-  local fmt = serializer.dict {
-    [fields.user] = serializer.str,
-    [fields.password] = serializer.str,
-    [fields.deviceid] = serializer.long,
-    [fields.appversion] = serializer.str,
-  }
-  local content = serializer.pack(data, fmt)
+  local content = serializer.pack(data, req.format)
   return packet.make(req.type, content)
 end
 

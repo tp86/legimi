@@ -79,6 +79,9 @@ local sequence = {
 formats.str = "s4"
 formats.count = "i2"
 formats.int = "i4"
+formats.long = "i8"
+formats.short = "i2"
+formats.byte = "i1"
 
 local lengthbytes = 4
 local lengthformat = "I" .. lengthbytes
@@ -91,7 +94,9 @@ local function withlen(format)
 end
 
 formats.lenint = lengthformat .. formats.int
-formats.long = lengthformat .. "i8"
+formats.lenlong = lengthformat .. formats.long
+formats.lenshort = lengthformat .. formats.short
+formats.lenbyte = lengthformat .. formats.byte
 formats.dict = function(format)
   return {
     [directions.pack] = function(data) return packdict(data, format) end,
@@ -151,7 +156,9 @@ return {
   str = formats.str,
   int = formats.int,
   lenint = formats.lenint,
-  long = formats.long,
+  lenlong = formats.lenlong,
+  lenshort = formats.lenshort,
+  lenbyte = formats.lenbyte,
   count = formats.count,
   key = formats.key,
   dict = formats.dict,
