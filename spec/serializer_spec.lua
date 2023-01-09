@@ -34,7 +34,7 @@ describe("serializer", function()
 
       it("with explicit format", function()
         local data = 0x12001200
-        local format = serializer.int
+        local format = serializer.lenint
         local expected = "\x04\x00\x00\x00\x00\x12\x00\x12"
         local actual = serializer.pack(data, format)
         assert.equal(expected, actual)
@@ -56,7 +56,7 @@ describe("serializer", function()
 
       it("with explicit format", function()
         local data = { [0] = 15, [2] = "abc" }
-        local format = serializer.dict { [0] = serializer.int, [1] = serializer.str, [2] = serializer.str }
+        local format = serializer.dict { [0] = serializer.lenint, [1] = serializer.str, [2] = serializer.str }
         local expected = {
           header = "\x02\x00",
           "\x00\x00\x04\x00\x00\x00\x0f\x00\x00\x00",
@@ -73,9 +73,28 @@ describe("serializer", function()
       end)
 
       it("nested", function()
-        local data = { [0] = { [2] = "abc"} }
+        local data = { [0] = { [2] = "abc" } }
         local format = serializer.dict { [0] = serializer.dict { [2] = serializer.str } }
         local expected = "\x01\x00\x00\x00\x01\x00\x02\x00\x03\x00\x00\x00abc"
+        local actual = serializer.pack(data, format)
+        assert.equal(expected, actual)
+      end)
+    end)
+
+    describe("a Lua sequence", function()
+
+      it("with explicit format", function()
+        local data = { 0x11, "abc" }
+        local format = { serializer.lenint, serializer.str }
+        local expected = "\x04\x00\x00\x00\x11\x00\x00\x00\x03\x00\x00\x00abc"
+        local actual = serializer.pack(data, format)
+        assert.equal(expected, actual)
+      end)
+
+      it("with nested dict", function()
+        local data = { { [2] = 0x22 }, "abc" }
+        local format = { serializer.dict { [2] = serializer.count }, serializer.str }
+        local expected = "\x01\x00\x02\x00\x22\x00\x03\x00\x00\x00abc"
         local actual = serializer.pack(data, format)
         assert.equal(expected, actual)
       end)
@@ -99,7 +118,7 @@ describe("serializer", function()
 
       it("with explicit format", function()
         local data = "\x04\x00\x00\x00\x00\x12\x00\x12"
-        local format = serializer.int
+        local format = serializer.lenint
         local expected = 0x12001200
         local actual = serializer.unpack(data, format)
         assert.equal(expected, actual)
@@ -121,7 +140,7 @@ describe("serializer", function()
 
       it("with explicit format", function()
         local data = "\x02\x00\x00\x00\x04\x00\x00\x00\x0f\x00\x00\x00\x02\x00\x03\x00\x00\x00abc"
-        local format = serializer.dict { [0] = serializer.int, [1] = serializer.str, [2] = serializer.str }
+        local format = serializer.dict { [0] = serializer.lenint, [1] = serializer.str, [2] = serializer.str }
         local expected = { [0] = 15, [2] = "abc" }
         local actual = serializer.unpack(data, format)
         assert.same(expected, actual)
@@ -130,7 +149,18 @@ describe("serializer", function()
       it("nested", function()
         local data = "\x01\x00\x00\x00\x01\x00\x02\x00\x03\x00\x00\x00abc"
         local format = serializer.dict { [0] = serializer.dict { [2] = serializer.str } }
-        local expected = { [0] = { [2] = "abc"} }
+        local expected = { [0] = { [2] = "abc" } }
+        local actual = serializer.unpack(data, format)
+        assert.same(expected, actual)
+      end)
+    end)
+
+    describe("a Lua sequence", function()
+
+      it("with explicit format", function()
+        local data = "\x11\x00\x00\x00\x22\x00\x03\x00\x00\x00abc"
+        local format = { serializer.int, serializer.key, serializer.str }
+        local expected = { 0x11, 0x22, "abc" }
         local actual = serializer.unpack(data, format)
         assert.same(expected, actual)
       end)

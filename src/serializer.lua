@@ -1,4 +1,4 @@
-local pack
+local pack, unpack
 
 local function packseq(data, format)
   local packed = ""
@@ -7,6 +7,23 @@ local function packseq(data, format)
     packed = packed .. packedvalue
   end
   return packed
+end
+
+local function unpackseq(data, format)
+  local totalread = 0
+  local subdata = data
+  local function advance(read)
+    totalread = totalread + read
+    subdata = subdata:sub(read)
+  end
+
+  local unpacked = {}
+  for i, fmt in ipairs(format) do
+    local value, read = unpack(subdata, fmt)
+    advance(read)
+    table.insert(unpacked, value)
+  end
+  return unpacked, totalread
 end
 
 local formats = {
@@ -26,8 +43,6 @@ local function packdict(data, format)
   local packedcount = pack(count, formats.count)
   return packedcount .. packed
 end
-
-local unpack
 
 local function unpackdict(data, format)
   local totalread = 0
@@ -58,22 +73,24 @@ local directions = {
 
 local sequence = {
   [directions.pack] = packseq,
-  --[directions.unpack] = unpackseq,
+  [directions.unpack] = unpackseq,
 }
 
 formats.str = "s4"
 formats.count = "i2"
+formats.int = "i4"
 
 local lengthbytes = 4
 local lengthformat = "I" .. lengthbytes
 local function getlen(format)
   return tonumber(format:sub(#lengthformat + 2))
 end
+
 local function withlen(format)
   return format:sub(1, 2) == lengthformat
 end
 
-formats.int = lengthformat .. "i4"
+formats.lenint = lengthformat .. formats.int
 formats.long = lengthformat .. "i8"
 formats.dict = function(format)
   return {
@@ -98,7 +115,7 @@ pack = function(value, format)
       if type(value) == "string" then
         format = formats.str
       else
-        format = formats.int
+        format = formats.lenint
       end
     end
     local data = { value }
@@ -133,8 +150,10 @@ end
 return {
   str = formats.str,
   int = formats.int,
+  lenint = formats.lenint,
   long = formats.long,
   count = formats.count,
+  key = formats.key,
   dict = formats.dict,
   pack = pack,
   unpack = unpack,
