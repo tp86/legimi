@@ -174,16 +174,11 @@ unpack = function(data, format)
     return handlecompound(data, format, directions.unpack)
   else
     local function strip(...)
-      local function handlelength(values)
-        if withlen(format) then
-          table.remove(values, 1)
-        end
-      end
-
       local values = table.pack(...)
-      handlelength(values)
-      local nextpos = table.remove(values)
-      local read = nextpos - 1
+      if withlen(format) then
+        table.remove(values, 1)
+      end
+      local read = table.remove(values) - 1
       table.insert(values, read)
       return table.unpack(values)
     end

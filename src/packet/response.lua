@@ -93,6 +93,13 @@ local function parseauthresp(data)
   return parsed
 end
 
+local function getsessionid(authresp)
+  return authresp[responses.auth.fields.sessionid]
+end
+
 return {
-  auth = parseauthresp,
+  auth = {
+    parse = parseauthresp,
+    sessionid = getsessionid,
+  }
 }
