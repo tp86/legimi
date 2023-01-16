@@ -99,6 +99,25 @@ describe("serializer", function()
         assert.equal(expected, actual)
       end)
     end)
+
+    describe("an array", function()
+
+      it("with explicit format - simple", function()
+        local data = { 0x11, 0x12, 0x13 }
+        local format = serializer.array(serializer.int)
+        local expected = "\x03\x00\x11\x00\x00\x00\x12\x00\x00\x00\x13\x00\x00\x00"
+        local actual = serializer.pack(data, format)
+        assert.equal(expected, actual)
+      end)
+
+      it("with explicit format - compound", function()
+        local data = { { [0] = 0x12 } }
+        local format = serializer.array(serializer.dict { [0] = serializer.lenint })
+        local expected = "\x01\x00\x01\x00\x00\x00\x04\x00\x00\x00\x12\x00\x00\x00"
+        local actual = serializer.pack(data, format)
+        assert.equal(expected, actual)
+      end)
+    end)
   end)
 
   describe("deserializes", function()
@@ -161,6 +180,33 @@ describe("serializer", function()
         local data = "\x11\x00\x00\x00\x22\x00\x03\x00\x00\x00abc"
         local format = { serializer.int, serializer.key, serializer.str }
         local expected = { 0x11, 0x22, "abc" }
+        local actual = serializer.unpack(data, format)
+        assert.same(expected, actual)
+      end)
+
+      it("with nested dict", function()
+        local data = "\x01\x00\x02\x00\x22\x00\x03\x00\x00\x00abc"
+        local format = { serializer.dict { [2] = serializer.count }, serializer.str }
+        local expected = { { [2] = 0x22 }, "abc" }
+        local actual = serializer.unpack(data, format)
+        assert.same(expected, actual)
+      end)
+    end)
+
+    describe("an array", function()
+
+      it("with explicit format - simple", function()
+        local data = "\x03\x00\x11\x00\x00\x00\x12\x00\x00\x00\x13\x00\x00\x00"
+        local format = serializer.array(serializer.int)
+        local expected = { 0x11, 0x12, 0x13 }
+        local actual = serializer.unpack(data, format)
+        assert.same(expected, actual)
+      end)
+
+      it("with explicit format - compound", function()
+        local data = "\x01\x00\x01\x00\x00\x00\x04\x00\x00\x00\x12\x00\x00\x00"
+        local format = serializer.array(serializer.dict { [0] = serializer.lenint })
+        local expected = { { [0] = 0x12 } }
         local actual = serializer.unpack(data, format)
         assert.same(expected, actual)
       end)

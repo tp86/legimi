@@ -14,11 +14,11 @@ local function unpackseq(data, format)
   local subdata = data
   local function advance(read)
     totalread = totalread + read
-    subdata = subdata:sub(read)
+    subdata = subdata:sub(read + 1)
   end
 
   local unpacked = {}
-  for i, fmt in ipairs(format) do
+  for _, fmt in ipairs(format) do
     local value, read = unpack(subdata, fmt)
     advance(read)
     table.insert(unpacked, value)
@@ -49,19 +49,51 @@ local function unpackdict(data, format)
   local subdata = data
   local function advance(read)
     totalread = totalread + read
-    subdata = subdata:sub(read)
+    subdata = subdata:sub(read + 1)
   end
 
   local unpacked = {}
   local count, from = string.unpack(formats.count, subdata)
-  advance(from)
+  advance(from - 1)
   for _ = 1, count do
     ---@diagnostic disable-next-line: redefined-local
     local key, from = string.unpack(formats.count, subdata)
-    advance(from)
+    advance(from - 1)
     local value, read = unpack(subdata, format[key])
     advance(read)
     unpacked[key] = value
+  end
+  return unpacked, totalread
+end
+
+local function packarray(data, format)
+  local count = 0
+  local packed = ""
+  for _, value in ipairs(data) do
+    local packedvalue = pack(value, format)
+    packed = packed .. packedvalue
+    count = count + 1
+  end
+  local packedcount = pack(count, formats.count)
+  return packedcount .. packed
+end
+
+local function unpackarray(data, format)
+  local totalread = 0
+  local subdata = data
+  local function advance(read)
+    totalread = totalread + read
+    subdata = subdata:sub(read + 1)
+
+  end
+
+  local unpacked = {}
+  local count, from = string.unpack(formats.count, subdata)
+  advance(from - 1)
+  for _ = 1, count do
+    local value, read = unpack(subdata, format)
+    advance(read)
+    unpacked[#unpacked + 1] = value
   end
   return unpacked, totalread
 end
@@ -101,6 +133,12 @@ formats.dict = function(format)
   return {
     [directions.pack] = function(data) return packdict(data, format) end,
     [directions.unpack] = function(data) return unpackdict(data, format) end,
+  }
+end
+formats.array = function(format)
+  return {
+    [directions.pack] = function(data) return packarray(data, format) end,
+    [directions.unpack] = function(data) return unpackarray(data, format) end,
   }
 end
 
@@ -144,7 +182,9 @@ unpack = function(data, format)
 
       local values = table.pack(...)
       handlelength(values)
-      --table.remove(values)
+      local nextpos = table.remove(values)
+      local read = nextpos - 1
+      table.insert(values, read)
       return table.unpack(values)
     end
 
@@ -162,6 +202,7 @@ return {
   count = formats.count,
   key = formats.key,
   dict = formats.dict,
+  array = formats.array,
   pack = pack,
   unpack = unpack,
 }
