@@ -141,6 +141,9 @@ formats.array = function(format)
     [directions.unpack] = function(data) return unpackarray(data, format) end,
   }
 end
+formats.bytes = function(length)
+  return "c" .. length
+end
 
 local function handlecompound(data, format, direction)
   if #format == 2 and type(format[1]) == "function" and type(format[2]) == "function" then
@@ -189,6 +192,8 @@ end
 
 return {
   str = formats.str,
+  byte = formats.byte,
+  short = formats.short,
   int = formats.int,
   lenint = formats.lenint,
   lenlong = formats.lenlong,
@@ -196,6 +201,7 @@ return {
   lenbyte = formats.lenbyte,
   count = formats.count,
   key = formats.key,
+  bytes = formats.bytes,
   dict = formats.dict,
   array = formats.array,
   pack = pack,
