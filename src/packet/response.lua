@@ -84,6 +84,99 @@ responses.auth.format = serializer.dict {
   [responses.auth.fields.accountimageurl] = serializer.str,
   [responses.auth.fields.brandcollectionid] = serializer.lenlong,
 }
+responses.booklist = {
+  type = 28,
+}
+local bookitem = {
+  publisher = 0,
+  language = 1,
+  categoryname = 2,
+  categorydescription = 3,
+  publishdate = 4,
+  issuename = 5,
+  downloadurl = 6,
+  categoryid = 7,
+  contenttype = 8,
+  hybrid = 9,
+  id = 10,
+  name = 11,
+  size = 12,
+  version = 13,
+  description = 14,
+  unlimited = 15,
+  drm = 16,
+  drmkey = 17,
+  drmiv = 18,
+  legimipagecount = 19,
+  linkedbookid = 20,
+  isaudioavailable = 21,
+  audiovoicename = 22,
+  audioisartificial = 23,
+  audioduration = 24,
+  linkedaudioduration = 25,
+  linkedaudiovoice = 26,
+  linkedaudioisartificial = 27,
+  linkedaudioid = 28,
+  wordscount = 29,
+  isalreadydownloaded = 30,
+  coverurl = 31,
+  isintrash = 32,
+  playercoverurl = 33,
+  nextpagetoken = 34,
+}
+responses.booklist.format = serializer.array(
+  {
+    serializer.byte, -- document type (assert == 7 (unlimited document list item))
+    serializer.int, -- length
+    serializer.long, -- id (unused)
+    serializer.str, -- name (unused)
+    serializer.int, -- size (unused)
+    serializer.long, -- version (unused)
+    serializer.str, -- desc (unused)
+    serializer.dict {
+      [bookitem.description] = serializer.str,
+      [bookitem.id] = serializer.lenlong,
+      [bookitem.name] = serializer.str,
+      [bookitem.size] = serializer.lenint,
+      [bookitem.version] = serializer.lenlong,
+      [bookitem.publisher] = serializer.str,
+      [bookitem.language] = serializer.str,
+      [bookitem.categoryname] = serializer.str,
+      [bookitem.categorydescription] = serializer.str,
+      [bookitem.issuename] = serializer.str,
+      [bookitem.downloadurl] = serializer.str,
+      [bookitem.publishdate] = serializer.lenlong,
+      [bookitem.categoryid] = serializer.lenlong,
+      [bookitem.contenttype] = serializer.lenint,
+      [bookitem.hybrid] = serializer.lenbyte,
+      [bookitem.unlimited] = serializer.lenbyte,
+      [bookitem.drm] = serializer.lenbyte,
+      [bookitem.drmkey] = serializer.str,
+      [bookitem.drmiv] = serializer.str,
+      [bookitem.legimipagecount] = serializer.lenint,
+      [bookitem.wordscount] = serializer.lenlong,
+      [bookitem.isalreadydownloaded] = serializer.lenbyte,
+      [bookitem.linkedbookid] = serializer.lenlong,
+      [bookitem.linkedaudioid] = serializer.lenlong,
+      [bookitem.isaudioavailable] = serializer.lenbyte,
+      [bookitem.linkedaudioisartificial] = serializer.lenbyte,
+      [bookitem.linkedaudiovoice] = serializer.str,
+      [bookitem.linkedaudioduration] = serializer.lenlong,
+      [bookitem.audiovoicename] = serializer.str,
+      [bookitem.audioisartificial] = serializer.lenbyte,
+      [bookitem.isintrash] = serializer.lenbyte,
+      [bookitem.audioduration] = serializer.lenlong,
+      [bookitem.coverurl] = serializer.str,
+      [bookitem.playercoverurl] = serializer.str,
+      [bookitem.nextpagetoken] = serializer.str,
+    }
+  }
+)
+
+local types = {
+  [responses.auth.type] = responses.auth,
+  [responses.booklist.type] = responses.booklist,
+}
 
 local packet = require "packet.generic"
 local function parseauthresp(data)
@@ -97,9 +190,21 @@ local function getsessionid(authresp)
   return authresp[responses.auth.fields.sessionid]
 end
 
+local function parse(data)
+  local pkt = packet.read(data)
+  local type, content = pkt.type, pkt.content
+  local response = types[type]
+  if response then
+    return serializer.unpack(content, response.format)
+  else
+    error("cannot find response type " .. type)
+  end
+end
+
 return {
   auth = {
     parse = parseauthresp,
     sessionid = getsessionid,
-  }
+  },
+  parse = parse,
 }

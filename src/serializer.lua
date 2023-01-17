@@ -57,9 +57,13 @@ local function unpackdict(data, format)
   advance(from - 1)
   for _ = 1, count do
     ---@diagnostic disable-next-line: redefined-local
-    local key, from = string.unpack(formats.count, subdata)
+    local key, from = string.unpack(formats.key, subdata)
     advance(from - 1)
-    local value, read = unpack(subdata, format[key])
+    local fmt = format[key]
+    if not fmt then
+      fmt = formats.str
+    end
+    local value, read = unpack(subdata, fmt)
     advance(read)
     unpacked[key] = value
   end
@@ -195,6 +199,7 @@ return {
   byte = formats.byte,
   short = formats.short,
   int = formats.int,
+  long = formats.long,
   lenint = formats.lenint,
   lenlong = formats.lenlong,
   lenshort = formats.lenshort,
