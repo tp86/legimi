@@ -1,0 +1,3 @@
+[submodule "lib/class"]
+	path = lib/class
+	url = https://github.com/tp86/classes-lua

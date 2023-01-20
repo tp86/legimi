@@ -1,6 +1,7 @@
 return {
   _all = {
-    coverage = true
+    coverage = true,
+    lpath = "./src/?.lua;./src/?/?.lua;./src/?/init.lua;./lib/?/src/?.lua;./lib/?/src/?/init.lua",
   }
 }
 
