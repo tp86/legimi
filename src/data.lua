@@ -1,13 +1,58 @@
-local classmt = {
-  __call = function(cls, value)
-    local obj = {
-      value = value,
-    }
-    setmetatable(obj, cls)
-    return obj
+local class = require "class"
+local init = class.constructor
+
+local Number = class {
+  formatprefix = "i",
+  [init] = function(self, value)
+    self.value = value
+    self.format = self.formatprefix .. self.length
+  end,
+  set = function(self, value)
+    self.value = value
+  end,
+  pack = function(self)
+    return string.pack(self.format, self.value)
+  end,
+  unpack = function(self, data)
+    self.value = string.unpack(self.format, data)
   end,
 }
 
+local function makenumberclass(length)
+  return class.extends(Number) {
+    length = length,
+    [init] = function(self, value)
+      class.super(self, value)
+    end,
+  }
+end
+
+local numbers = {
+  byte = makenumberclass(1),
+  short = makenumberclass(2),
+  int = makenumberclass(4),
+  long = makenumberclass(8),
+}
+
+local Length = class {
+  pack = function(self)
+    return string.pack(self.format, self.length, self.value)
+  end,
+  unpack = function(self, data)
+    local _, value = string.unpack(self.format, data)
+    self.value = value
+  end,
+}
+
+local numberswithlength = {
+  byte = class.extends(Length, numbers.byte) {
+    [init] = function(self, value)
+      class.super(self, value)
+      self.format = "I4" .. self.format
+    end,
+  }
+}
+--[[
 local Byte = {
   valuelength = 1,
   getformat = function(self)
@@ -42,6 +87,7 @@ local Byte = {
 }
 Byte.__index = Byte
 setmetatable(Byte, classmt)
+--]]
 
 local Sequence = {}
 Sequence.__index = Sequence
@@ -70,7 +116,10 @@ Sequence.withformat = function(format)
 end
 
 return {
-  byte = Byte,
+  Byte = numbers.byte,
+  Short = numbers.short,
+  Int = numbers.int,
+  Long = numbers.long,
+  LenByte = numberswithlength.byte,
   sequence = Sequence,
 }
-
