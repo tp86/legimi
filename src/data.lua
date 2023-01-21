@@ -22,7 +22,7 @@ local function makenumberclass(length)
   return class.extends(Number) {
     length = length,
     [init] = function(self, value)
-      class.super(self, value)
+      class.super(self)(value)
     end,
   }
 end
@@ -35,6 +35,9 @@ local numbers = {
 }
 
 local Length = class {
+  [init] = function(self)
+    self.format = "I4" .. self.format
+  end,
   pack = function(self)
     return string.pack(self.format, self.length, self.value)
   end,
@@ -47,8 +50,8 @@ local Length = class {
 local numberswithlength = {
   byte = class.extends(Length, numbers.byte) {
     [init] = function(self, value)
-      class.super(self, value)
-      self.format = "I4" .. self.format
+      class.super(self, numbers.byte)(value)
+      class.super(self, Length)()
     end,
   }
 }
