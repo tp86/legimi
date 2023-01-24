@@ -19,11 +19,13 @@ local Number = class {
 }
 
 local function makenumberclass(length)
+  local function numberinit(self, value)
+    class.parent(self)(value)
+  end
+
   return class.extends(Number) {
     length = length,
-    [init] = function(self, value)
-      class.parent(self)(value)
-    end,
+    [init] = numberinit,
   }
 end
 
@@ -48,11 +50,13 @@ local Length = class {
 }
 
 local function extendwithlength(numberclass)
+  local function initfn(self, value)
+    class.parent(self, numberclass)(value)
+    class.parent(self, Length)()
+  end
+
   return class.extends(Length, numberclass) {
-    [init] = function(self, value)
-      class.parent(self, numberclass)(value)
-      class.parent(self, Length)()
-    end,
+    [init] = initfn,
   }
 end
 
@@ -62,43 +66,8 @@ local numberswithlength = {
   int = extendwithlength(numbers.int),
   long = extendwithlength(numbers.long),
 }
---[[
-local Byte = {
-  valuelength = 1,
-  getformat = function(self)
-    local format = "i" .. self.valuelength
-    if self.length then
-      format = "I" .. self.length .. format
-    end
-    return format
-  end,
-  makedata = function(self)
-    local data = { self.value }
-    if self.length then
-      table.insert(data, 1, self.valuelength)
-    end
-    return data
-  end,
-  pack = function(self)
-    return string.pack(self:getformat(), table.unpack(self:makedata()))
-  end,
-  unpack = function(self, data)
-    local values = table.pack(string.unpack(self:getformat(), data))
-    if self.length then
-      table.remove(values, 1)
-    end
-    self.value = values[1]
-    return self, data:sub(values[2])
-  end,
-  withlength = function(self, length)
-    self.length = length or 4
-    return self
-  end,
-}
-Byte.__index = Byte
-setmetatable(Byte, classmt)
---]]
 
+--[[
 local Sequence = {}
 Sequence.__index = Sequence
 setmetatable(Sequence, classmt)
@@ -124,6 +93,26 @@ Sequence.withformat = function(format)
     end
   }
 end
+--]]
+
+local Sequence = function()
+  local function seqinit(self, ...)
+    local values = table.pack(...)
+    for i = 1, values.n do
+      if not self.values then self.values = {} end
+      self.values[i] = values[i]
+    end
+  end
+
+  local function set(self, ...)
+    seqinit(self, ...)
+  end
+
+  return class {
+    [init] = seqinit,
+    set = set,
+  }
+end
 
 return {
   Byte = numbers.byte,
@@ -134,5 +123,5 @@ return {
   LenShort = numberswithlength.short,
   LenInt = numberswithlength.int,
   LenLong = numberswithlength.long,
-  sequence = Sequence,
+  Sequence = Sequence,
 }

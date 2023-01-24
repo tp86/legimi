@@ -102,3 +102,29 @@ test {
   serialized = "\x08\x00\x00\x00\x03\x04\x05\x06\x07\x08\x09\x0a",
   deserialized = 0x0a09080706050403,
 }
+
+describe("sequence", function()
+
+  local Seq = data.Sequence
+
+  it("can be created with types but without values", function()
+    local seq = Seq { data.Byte, data.LenLong }()
+    assert.is_not_nil(seq)
+    assert.is_nil(seq.values)
+  end)
+
+  it("can be created with values", function()
+    local seq = Seq { data.Byte, data.LenInt }(1, 2)
+    local expected = { 1, 2 }
+    assert.same(expected, seq.values)
+  end)
+
+  it("can have values set after creating", function()
+    local seq = Seq { data.Short, data.Byte }()
+    assert.is_nil(seq.values)
+    local values = { 3, 4 }
+    seq:set(table.unpack(values))
+    assert.same(values, seq.values)
+  end)
+end)
+
