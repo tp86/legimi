@@ -47,13 +47,20 @@ local Length = class {
   end,
 }
 
-local numberswithlength = {
-  byte = class.extends(Length, numbers.byte) {
+local function extendwithlength(numberclass)
+  return class.extends(Length, numberclass) {
     [init] = function(self, value)
-      class.parent(self, numbers.byte)(value)
+      class.parent(self, numberclass)(value)
       class.parent(self, Length)()
     end,
   }
+end
+
+local numberswithlength = {
+  byte = extendwithlength(numbers.byte),
+  short = extendwithlength(numbers.short),
+  int = extendwithlength(numbers.int),
+  long = extendwithlength(numbers.long),
 }
 --[[
 local Byte = {
@@ -124,5 +131,8 @@ return {
   Int = numbers.int,
   Long = numbers.long,
   LenByte = numberswithlength.byte,
+  LenShort = numberswithlength.short,
+  LenInt = numberswithlength.int,
+  LenLong = numberswithlength.long,
   sequence = Sequence,
 }

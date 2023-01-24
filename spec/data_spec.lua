@@ -81,3 +81,24 @@ test {
   serialized = "\x01\x00\x00\x00\x03",
   deserialized = 3,
 }
+
+test {
+  description = "short with length",
+  class = data.LenShort,
+  serialized = "\x02\x00\x00\x00\x03\x04",
+  deserialized = 0x0403,
+}
+
+test {
+  description = "int with length",
+  class = data.LenInt,
+  serialized = "\x04\x00\x00\x00\x03\x04\x05\x06",
+  deserialized = 0x06050403,
+}
+
+test {
+  description = "long with length",
+  class = data.LenLong,
+  serialized = "\x08\x00\x00\x00\x03\x04\x05\x06\x07\x08\x09\x0a",
+  deserialized = 0x0a09080706050403,
+}
