@@ -95,22 +95,40 @@ Sequence.withformat = function(format)
 end
 --]]
 
-local Sequence = function()
-  local function seqinit(self, ...)
+local Sequence = function(types)
+  local function set(self, ...)
     local values = table.pack(...)
     for i = 1, values.n do
       if not self.values then self.values = {} end
-      self.values[i] = values[i]
+      local value = values[i]
+      self.values[i] = value
     end
   end
 
-  local function set(self, ...)
-    seqinit(self, ...)
+  local function seqinit(self, ...)
+    set(self, ...)
+  end
+
+  local function pack(self)
+    local serialized = {}
+    for i, datatype in ipairs(self.types) do
+      local value = self.values[i]
+      local typedvalue
+      if type(value) == "table" then
+        typedvalue = datatype(table.unpack(value))
+      else
+        typedvalue = datatype(value)
+      end
+      serialized[i] = typedvalue:pack()
+    end
+    return table.concat(serialized)
   end
 
   return class {
+    types = types,
     [init] = seqinit,
     set = set,
+    pack = pack,
   }
 end
 
