@@ -68,7 +68,7 @@ local function coveragefullreport()
   execwithparams("cat luacov.report.out")
 end
 
-local devdeps = { "busted", "luacov" }
+local devdeps = { "busted", "luaunit", "luacov" }
 local ok, deps = pcall(require, "deps")
 if not ok then
   deps = {}
