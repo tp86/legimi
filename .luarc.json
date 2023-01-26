@@ -5,12 +5,13 @@
       "path": [
         "src/?.lua",
         "src/?/init.lua",
-        "./.rocks/share/lua/5.4/?.lua"
+        "./.luarocks/share/lua/5.4/?.lua"
       ]
     },
     "workspace": {
       "library": [
-        "./.rocks/share/lua/5.4"
+        "./.luarocks/share/lua/5.4",
+        "lib"
       ]
     }
   }
