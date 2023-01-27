@@ -5,7 +5,7 @@ local Number = class {
   formatprefix = "i",
   [init] = function(self, value)
     self.value = value
-    self.format = self.formatprefix .. self.length
+    self.format = self.formatprefix .. self.size
   end,
   set = function(self, value)
     self.value = value
@@ -16,15 +16,18 @@ local Number = class {
   unpack = function(self, data)
     self.value = string.unpack(self.format, data)
   end,
+  length = function(self)
+    return self.size
+  end,
 }
 
-local function makenumberclass(length)
-  local function numberinit(self, value)
-    class.parent(self)(value)
-  end
+local function numberinit(self, value)
+  class.parent(self)(value)
+end
 
+local function makenumberclass(size)
   return class.extends(Number) {
-    length = length,
+    size = size,
     [init] = numberinit,
   }
 end
@@ -37,15 +40,20 @@ local numbers = {
 }
 
 local Length = class {
+  formatprefix = "I",
+  lengthsize = 4,
   [init] = function(self)
-    self.format = "I4" .. self.format
+    self.format = self.formatprefix .. self.lengthsize .. self.format
   end,
   pack = function(self)
-    return string.pack(self.format, self.length, self.value)
+    return string.pack(self.format, self.size, self.value)
   end,
   unpack = function(self, data)
     local _, value = string.unpack(self.format, data)
     self.value = value
+  end,
+  length = function(self)
+    return self.size + self.lengthsize
   end,
 }
 
@@ -67,35 +75,8 @@ local numberswithlength = {
   long = extendwithlength(numbers.long),
 }
 
---[[
-local Sequence = {}
-Sequence.__index = Sequence
-setmetatable(Sequence, classmt)
-
-Sequence.pack = function(self)
-  local packed = {}
-  for _, value in ipairs(self.value) do
-    table.insert(packed, value:pack())
-  end
-  return table.concat(packed)
-end
-Sequence.withformat = function(format)
-  return {
-    unpack = function(data)
-      local values = {}
-      for _, fmt in ipairs(format) do
-        local unpacked = table.pack(fmt.unpack(data))
-        local value = unpacked[1]
-        data = unpacked[2]
-        table.insert(values, value)
-      end
-      return Sequence(values), data
-    end
-  }
-end
---]]
-
-local Sequence = function(types)
+local Sequence
+do
   local function set(self, ...)
     local values = table.pack(...)
     for i = 1, values.n do
@@ -124,12 +105,26 @@ local Sequence = function(types)
     return table.concat(serialized)
   end
 
-  return class {
-    types = types,
-    [init] = seqinit,
-    set = set,
-    pack = pack,
-  }
+  local function unpack(self, data)
+    local values = {}
+    for i, datatype in ipairs(self.types) do
+      local dataobject = datatype()
+      dataobject:unpack(data)
+      values[i] = dataobject.value
+      data = data:sub(dataobject:length() + 1)
+    end
+    self.values = values
+  end
+
+  Sequence = function(types)
+    return class {
+      types = types,
+      [init] = seqinit,
+      set = set,
+      pack = pack,
+      unpack = unpack,
+    }
+  end
 end
 
 return {

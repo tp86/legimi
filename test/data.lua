@@ -134,7 +134,12 @@ Test_sequence = {
     lu.assert_equals(actual, expected)
   end,
 
-  _test_can_be_deserialized = function()
+  test_can_be_deserialized = function()
+    local seq = Seq { data.LenByte, data.Short } ()
+    local value = "\x01\x00\x00\x00\x07\x08\x00"
+    local expected = { 7, 8 }
+    seq:unpack(value)
+    lu.assert_equals(seq.values, expected)
   end,
 }
 
