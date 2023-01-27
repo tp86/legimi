@@ -169,6 +169,30 @@ Test_sequence_nested = {
   end,
 }
 
+local Arr = data.Array
+
+Test_array = {
+
+  test_can_be_created_with_type_but_without_values = function()
+    local arr = Arr(data.Byte)()
+    lu.assert_not_nil(arr)
+    lu.assert_nil(arr:get())
+  end,
+
+  test_can_be_created_with_values = function()
+    local arr = Arr(data.Byte) { 1, 2, 3 }
+    lu.assert_equals(arr:get(), { 1, 2, 3 })
+  end,
+
+  test_can_have_values_set_after_creating = function()
+    local arr = Arr(data.Short)()
+    lu.assert_nil(arr:get())
+    local values = { 4, 5, 6 }
+    arr:set(values)
+    lu.assert_equals(arr:get(), values)
+  end,
+}
+
 local runner = not ... or #arg > 0
 if runner then
   os.exit(lu.LuaUnit.run())

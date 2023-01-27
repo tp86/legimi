@@ -1,6 +1,10 @@
 local class = require "class"
 local init = class.constructor
 
+local function passthroughinit(self, ...)
+  class.parent(self)(...)
+end
+
 local Number = class {
   formatprefix = "i",
   [init] = function(self, value)
@@ -24,14 +28,10 @@ local Number = class {
   end,
 }
 
-local function numberinit(self, value)
-  class.parent(self)(value)
-end
-
 local function makenumberclass(size)
   return class.extends(Number) {
     size = size,
-    [init] = numberinit,
+    [init] = passthroughinit,
   }
 end
 
@@ -78,33 +78,32 @@ local numberswithlength = {
   long = extendwithlength(numbers.long),
 }
 
-local Sequence
-do
-  local function set(self, values)
+local Multivalued = class {
+  [init] = function(self, values)
+    self:set(values)
+  end,
+  set = function(self, values)
     for i, value in pairs(values or {}) do
       if not self.values then self.values = {} end
       self.values[i] = value
     end
-  end
-
-  local function get(self)
+  end,
+  get = function(self)
     return self.values
-  end
+  end,
+}
 
-  local function seqinit(self, values)
-    set(self, values)
-  end
-
-  local function pack(self)
+local GenericSequence = class.extends(Multivalued) {
+  [init] = passthroughinit,
+  pack = function(self)
     local serialized = {}
     for i, datatype in ipairs(self.types) do
       local value = self.values[i]
       serialized[i] = datatype(value):pack()
     end
     return table.concat(serialized)
-  end
-
-  local function unpack(self, data)
+  end,
+  unpack = function(self, data)
     local values = {}
     for i, datatype in ipairs(self.types) do
       local dataobject = datatype()
@@ -113,27 +112,27 @@ do
       data = data:sub(dataobject:length() + 1)
     end
     self.values = values
-  end
-
-  local function length(self)
+  end,
+  length = function(self)
     local totallength = 0
     for _, datatype in ipairs(self.types) do
       totallength = totallength + datatype():length()
     end
     return totallength
-  end
+  end,
+}
 
-  Sequence = function(types)
-    return class {
-      types = types,
-      [init] = seqinit,
-      set = set,
-      get = get,
-      pack = pack,
-      unpack = unpack,
-      length = length,
-    }
-  end
+local Sequence = function(types)
+  return class.extends(GenericSequence) {
+    types = types,
+    [init] = passthroughinit,
+  }
+end
+
+local Array = function()
+  return class.extends(Multivalued) {
+    [init] = passthroughinit,
+  }
 end
 
 return {
@@ -146,4 +145,5 @@ return {
   LenInt = numberswithlength.int,
   LenLong = numberswithlength.long,
   Sequence = Sequence,
+  Array = Array,
 }
