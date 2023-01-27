@@ -114,7 +114,7 @@ Test_sequence = {
   end,
 
   test_can_be_created_with_values = function()
-    local seq = Seq { data.Byte, data.LenInt } (1, 2)
+    local seq = Seq { data.Byte, data.LenInt } { 1, 2 }
     local expected = { 1, 2 }
     lu.assert_equals(seq:get(), expected)
   end,
@@ -123,12 +123,12 @@ Test_sequence = {
     local seq = Seq { data.Short, data.Int, data.Byte } ()
     lu.assert_nil(seq:get())
     local values = { 3, nil, 4 }
-    seq:set(table.unpack(values))
+    seq:set(values)
     lu.assert_equals(seq:get(), values)
   end,
 
   test_can_be_serialized = function()
-    local seq = Seq { data.Byte, data.LenShort } (5, 6)
+    local seq = Seq { data.Byte, data.LenShort } { 5, 6 }
     local expected = "\x05\x02\x00\x00\x00\x06\x00"
     local actual = seq:pack()
     lu.assert_equals(actual, expected)
@@ -148,13 +148,13 @@ local nested = Seq { data.Byte, data.Byte }
 Test_sequence_nested = {
 
   test_can_be_created = function()
-    local seq = Seq { nested } ({ 7, 8 })
+    local seq = Seq { nested } { { 7, 8 } }
     lu.assert_not_nil(seq)
     lu.assert_equals(seq:get(), { { 7, 8 } })
   end,
 
   test_can_be_serialized = function()
-    local seq = Seq { nested, data.Short } ({ 8, 9 }, 10)
+    local seq = Seq { nested, data.Short } { { 8, 9 }, 10 }
     local expected = "\x08\x09\x0a\x00"
     local actual = seq:pack()
     lu.assert_equals(actual, expected)

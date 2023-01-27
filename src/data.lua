@@ -80,11 +80,9 @@ local numberswithlength = {
 
 local Sequence
 do
-  local function set(self, ...)
-    local values = table.pack(...)
-    for i = 1, values.n do
+  local function set(self, values)
+    for i, value in pairs(values or {}) do
       if not self.values then self.values = {} end
-      local value = values[i]
       self.values[i] = value
     end
   end
@@ -93,21 +91,15 @@ do
     return self.values
   end
 
-  local function seqinit(self, ...)
-    set(self, ...)
+  local function seqinit(self, values)
+    set(self, values)
   end
 
   local function pack(self)
     local serialized = {}
     for i, datatype in ipairs(self.types) do
       local value = self.values[i]
-      local typedvalue
-      if type(value) == "table" then
-        typedvalue = datatype(table.unpack(value))
-      else
-        typedvalue = datatype(value)
-      end
-      serialized[i] = typedvalue:pack()
+      serialized[i] = datatype(value):pack()
     end
     return table.concat(serialized)
   end
