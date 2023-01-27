@@ -7,6 +7,9 @@ local Number = class {
     self.value = value
     self.format = self.formatprefix .. self.size
   end,
+  get = function(self)
+    return self.value
+  end,
   set = function(self, value)
     self.value = value
   end,
@@ -46,11 +49,11 @@ local Length = class {
     self.format = self.formatprefix .. self.lengthsize .. self.format
   end,
   pack = function(self)
-    return string.pack(self.format, self.size, self.value)
+    return string.pack(self.format, self.size, self:get())
   end,
   unpack = function(self, data)
     local _, value = string.unpack(self.format, data)
-    self.value = value
+    self:set(value)
   end,
   length = function(self)
     return self.size + self.lengthsize
@@ -86,6 +89,10 @@ do
     end
   end
 
+  local function get(self)
+    return self.values
+  end
+
   local function seqinit(self, ...)
     set(self, ...)
   end
@@ -110,10 +117,18 @@ do
     for i, datatype in ipairs(self.types) do
       local dataobject = datatype()
       dataobject:unpack(data)
-      values[i] = dataobject.value
+      values[i] = dataobject:get()
       data = data:sub(dataobject:length() + 1)
     end
     self.values = values
+  end
+
+  local function length(self)
+    local totallength = 0
+    for _, datatype in ipairs(self.types) do
+      totallength = totallength + datatype():length()
+    end
+    return totallength
   end
 
   Sequence = function(types)
@@ -121,8 +136,10 @@ do
       types = types,
       [init] = seqinit,
       set = set,
+      get = get,
       pack = pack,
       unpack = unpack,
+      length = length,
     }
   end
 end

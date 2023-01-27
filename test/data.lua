@@ -13,13 +13,13 @@ local function testnumber(what)
     test_can_be_created_without_value = function()
       local object = dataclass()
       lu.assert_not_nil(object)
-      lu.assert_nil(object.value)
+      lu.assert_nil(object:get())
     end,
 
     test_can_be_created_with_value = function()
       local value = 1
       local object = dataclass(value)
-      lu.assert_equals(object.value, value)
+      lu.assert_equals(object:get(), value)
     end,
 
     test_can_be_set_after_creation = function()
@@ -27,7 +27,7 @@ local function testnumber(what)
       lu.assert_nil(object.value)
       local value = 2
       object:set(value)
-      lu.assert_equals(object.value, value)
+      lu.assert_equals(object:get(), value)
     end,
 
     test_can_be_serialized = function()
@@ -42,7 +42,7 @@ local function testnumber(what)
       local value = serialized
       local expected = deserialized
       object:unpack(value)
-      lu.assert_equals(object.value, expected)
+      lu.assert_equals(object:get(), expected)
     end,
   }
 end
@@ -110,21 +110,21 @@ Test_sequence = {
   test_can_be_created_with_types_but_without_values = function()
     local seq = Seq { data.Byte, data.LenLong } ()
     lu.assert_not_nil(seq)
-    lu.assert_nil(seq.values)
+    lu.assert_nil(seq:get())
   end,
 
   test_can_be_created_with_values = function()
     local seq = Seq { data.Byte, data.LenInt } (1, 2)
     local expected = { 1, 2 }
-    lu.assert_equals(seq.values, expected)
+    lu.assert_equals(seq:get(), expected)
   end,
 
   test_can_have_values_set_after_creating = function()
     local seq = Seq { data.Short, data.Int, data.Byte } ()
-    lu.assert_nil(seq.values)
+    lu.assert_nil(seq:get())
     local values = { 3, nil, 4 }
     seq:set(table.unpack(values))
-    lu.assert_equals(seq.values, values)
+    lu.assert_equals(seq:get(), values)
   end,
 
   test_can_be_serialized = function()
@@ -139,7 +139,7 @@ Test_sequence = {
     local value = "\x01\x00\x00\x00\x07\x08\x00"
     local expected = { 7, 8 }
     seq:unpack(value)
-    lu.assert_equals(seq.values, expected)
+    lu.assert_equals(seq:get(), expected)
   end,
 }
 
@@ -150,7 +150,7 @@ Test_sequence_nested = {
   test_can_be_created = function()
     local seq = Seq { nested } ({ 7, 8 })
     lu.assert_not_nil(seq)
-    lu.assert_equals(seq.values, { { 7, 8 } })
+    lu.assert_equals(seq:get(), { { 7, 8 } })
   end,
 
   test_can_be_serialized = function()
@@ -160,7 +160,12 @@ Test_sequence_nested = {
     lu.assert_equals(actual, expected)
   end,
 
-  _test_can_be_deserialized = function()
+  test_can_be_deserialized = function()
+    local seq = Seq { data.Byte, nested, data.Byte } ()
+    local value = "\x0b\x0c\x0d\x0e"
+    local expected = { 11, { 12, 13 }, 14 }
+    seq:unpack(value)
+    lu.assert_equals(seq:get(), expected)
   end,
 }
 
