@@ -1,6 +1,6 @@
 local lu = require "luaunit"
 
-local data = require "data"
+local serializers = require "serializer"
 
 local function testnumber(what)
   local classname = what.class
@@ -10,12 +10,12 @@ local function testnumber(what)
   _ENV["Test_" .. classname] = {
 
     test_can_serialize_value = function()
-      local serializer = data[classname]
+      local serializer = serializers[classname]
       lu.assert_equals(serializer.pack(deserialized), serialized)
     end,
 
     test_can_deserialize_value = function()
-      local serializer = data[classname]
+      local serializer = serializers[classname]
       lu.assert_equals(serializer.unpack(serialized), deserialized)
     end,
   }
@@ -69,19 +69,19 @@ testnumber {
   deserialized = 0x0a09080706050403,
 }
 
-local Seq = data.Sequence
+local Seq = serializers.Sequence
 
 Test_sequence = {
 
   test_can_serialize_values = function()
-    local seq = Seq { data.Byte, data.LenShort }
+    local seq = Seq { serializers.Byte, serializers.LenShort }
     local expected = "\x05\x02\x00\x00\x00\x06\x00"
     local actual = seq.pack({ 5, 6 })
     lu.assert_equals(actual, expected)
   end,
 
   test_can_deserialize_values = function()
-    local seq = Seq { data.LenByte, data.Short }
+    local seq = Seq { serializers.LenByte, serializers.Short }
     local value = "\x01\x00\x00\x00\x07\x08\x00"
     local expected = { 7, 8 }
     local actual = seq.unpack(value)
@@ -89,19 +89,19 @@ Test_sequence = {
   end,
 }
 
-local nested = Seq { data.Byte, data.Byte }
+local nested = Seq { serializers.Byte, serializers.Byte }
 
 Test_sequence_nested = {
 
   test_can_serialize_values = function()
-    local seq = Seq { nested, data.Short }
+    local seq = Seq { nested, serializers.Short }
     local expected = "\x08\x09\x0a\x00"
     local actual = seq.pack({ { 8, 9 }, 10 })
     lu.assert_equals(actual, expected)
   end,
 
   test_can_deserialize_values = function()
-    local seq = Seq { data.Byte, nested, data.Byte }
+    local seq = Seq { serializers.Byte, nested, serializers.Byte }
     local value = "\x0b\x0c\x0d\x0e"
     local expected = { 11, { 12, 13 }, 14 }
     local actual = seq.unpack(value)
@@ -109,7 +109,7 @@ Test_sequence_nested = {
   end,
 }
 
-local Arr = data.Array
+local Arr = serializers.Array
 
 Test_array = {
 

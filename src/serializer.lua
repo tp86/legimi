@@ -1,214 +1,94 @@
-local pack, unpack
+local class = require "class"
 
-local function packseq(data, format)
-  local packed = ""
-  for i, value in ipairs(data) do
-    local packedvalue = pack(value, format[i])
-    packed = packed .. packedvalue
-  end
-  return packed
-end
-
-local function unpackseq(data, format)
-  local totalread = 0
-  local subdata = data
-  local function advance(read)
-    totalread = totalread + read
-    subdata = subdata:sub(read + 1)
-  end
-
-  local unpacked = {}
-  for _, fmt in ipairs(format) do
-    local value, read = unpack(subdata, fmt)
-    advance(read)
-    table.insert(unpacked, value)
-  end
-  return unpacked, totalread
-end
-
-local formats = {
-  key = "i2",
-  count = "i2",
-}
-
-local function packdict(data, format)
-  local count = 0
-  local packed = ""
-  for key, value in pairs(data) do
-    local packedkey = pack(key, formats.key)
-    local packedvalue = pack(value, format[key])
-    packed = packed .. packedkey .. packedvalue
-    count = count + 1
-  end
-  local packedcount = pack(count, formats.count)
-  return packedcount .. packed
-end
-
-local function unpackdict(data, format)
-  local totalread = 0
-  local subdata = data
-  local function advance(read)
-    totalread = totalread + read
-    subdata = subdata:sub(read + 1)
-  end
-
-  local unpacked = {}
-  local count, from = string.unpack(formats.count, subdata)
-  advance(from - 1)
-  for _ = 1, count do
-    ---@diagnostic disable-next-line: redefined-local
-    local key, from = string.unpack(formats.key, subdata)
-    advance(from - 1)
-    local fmt = format[key]
-    if not fmt then
-      fmt = formats.str
-    end
-    local value, read = unpack(subdata, fmt)
-    advance(read)
-    unpacked[key] = value
-  end
-  return unpacked, totalread
-end
-
-local function packarray(data, format)
-  local count = 0
-  local packed = ""
-  for _, value in ipairs(data) do
-    local packedvalue = pack(value, format)
-    packed = packed .. packedvalue
-    count = count + 1
-  end
-  local packedcount = pack(count, formats.count)
-  return packedcount .. packed
-end
-
-local function unpackarray(data, format)
-  local totalread = 0
-  local subdata = data
-  local function advance(read)
-    totalread = totalread + read
-    subdata = subdata:sub(read + 1)
-
-  end
-
-  local unpacked = {}
-  local count, from = string.unpack(formats.count, subdata)
-  advance(from - 1)
-  for _ = 1, count do
-    local value, read = unpack(subdata, format)
-    advance(read)
-    unpacked[#unpacked + 1] = value
-  end
-  return unpacked, totalread
-end
-
-local directions = {
-  pack = 1,
-  unpack = 2,
-}
-
-local sequence = {
-  [directions.pack] = packseq,
-  [directions.unpack] = unpackseq,
-}
-
-formats.str = "s4"
-formats.count = "i2"
-formats.int = "i4"
-formats.long = "i8"
-formats.short = "i2"
-formats.byte = "i1"
-
-local lengthbytes = 4
-local lengthformat = "I" .. lengthbytes
-local function getlen(format)
-  return tonumber(format:sub(#lengthformat + 2))
-end
-
-local function withlen(format)
-  return format:sub(1, 2) == lengthformat
-end
-
-formats.lenint = lengthformat .. formats.int
-formats.lenlong = lengthformat .. formats.long
-formats.lenshort = lengthformat .. formats.short
-formats.lenbyte = lengthformat .. formats.byte
-formats.dict = function(format)
-  return {
-    [directions.pack] = function(data) return packdict(data, format) end,
-    [directions.unpack] = function(data) return unpackdict(data, format) end,
+local function makenumberclass(size)
+  local formatprefix = "i"
+  local format = formatprefix .. size
+  return class {
+    format = format,
+    pack = function(value)
+      return string.pack(format, value)
+    end,
+    unpack = function(data)
+      return string.unpack(format, data)
+    end,
+    length = function()
+      return size
+    end,
   }
 end
-formats.array = function(format)
-  return {
-    [directions.pack] = function(data) return packarray(data, format) end,
-    [directions.unpack] = function(data) return unpackarray(data, format) end,
+
+local numbers = {
+  byte = makenumberclass(1),
+  short = makenumberclass(2),
+  int = makenumberclass(4),
+  long = makenumberclass(8),
+}
+
+local function extendwithlength(numberclass)
+  local formatprefix = "I"
+  local lengthsize = 4
+  local format = formatprefix .. lengthsize .. numberclass.format
+  return class.extends(numberclass) {
+    pack = function(value)
+      return string.pack(format, numberclass.length(), value)
+    end,
+    unpack = function(data)
+      local _, value = string.unpack(format, data)
+      return value
+    end,
+    length = function()
+      return numberclass.length() + lengthsize
+    end,
   }
 end
-formats.bytes = function(length)
-  return "c" .. length
-end
 
-local function handlecompound(data, format, direction)
-  if #format == 2 and type(format[1]) == "function" and type(format[2]) == "function" then
-    return format[direction](data)
-  else
-    return sequence[direction](data, format)
-  end
-end
+local numberswithlength = {
+  byte = extendwithlength(numbers.byte),
+  short = extendwithlength(numbers.short),
+  int = extendwithlength(numbers.int),
+  long = extendwithlength(numbers.long),
+}
 
-pack = function(value, format)
-  if type(format) == "table" then
-    return handlecompound(value, format, directions.pack)
-  else
-    if not format then
-      if type(value) == "string" then
-        format = formats.str
-      else
-        format = formats.lenint
+local Sequence = function(serializers)
+  return class {
+    pack = function(values)
+      local serialized = {}
+      for i, serializer in ipairs(serializers) do
+        local value = values[i]
+        serialized[i] = serializer.pack(value)
       end
-    end
-    local data = { value }
-    if withlen(format) then
-      table.insert(data, 1, getlen(format))
-    end
-    return string.pack(format, table.unpack(data))
-  end
+      return table.concat(serialized)
+    end,
+    unpack = function(data)
+      local values = {}
+      for i, serializer in ipairs(serializers) do
+        values[i] = serializer.unpack(data)
+        data = data:sub(serializer.length() + 1)
+      end
+      return values
+    end,
+    length = function()
+      local totallength = 0
+      for _, serializer in ipairs(serializers) do
+        totallength = totallength + serializer.length()
+      end
+      return totallength
+    end,
+  }
 end
 
-unpack = function(data, format)
-  if type(format) == "table" then
-    return handlecompound(data, format, directions.unpack)
-  else
-    local function strip(...)
-      local values = table.pack(...)
-      if withlen(format) then
-        table.remove(values, 1)
-      end
-      local read = table.remove(values) - 1
-      table.insert(values, read)
-      return table.unpack(values)
-    end
-
-    return strip(string.unpack(format, data))
-  end
+local Array = function()
 end
 
 return {
-  str = formats.str,
-  byte = formats.byte,
-  short = formats.short,
-  int = formats.int,
-  long = formats.long,
-  lenint = formats.lenint,
-  lenlong = formats.lenlong,
-  lenshort = formats.lenshort,
-  lenbyte = formats.lenbyte,
-  count = formats.count,
-  key = formats.key,
-  bytes = formats.bytes,
-  dict = formats.dict,
-  array = formats.array,
-  pack = pack,
-  unpack = unpack,
+  Byte = numbers.byte,
+  Short = numbers.short,
+  Int = numbers.int,
+  Long = numbers.long,
+  LenByte = numberswithlength.byte,
+  LenShort = numberswithlength.short,
+  LenInt = numberswithlength.int,
+  LenLong = numberswithlength.long,
+  Sequence = Sequence,
+  Array = Array,
 }
