@@ -22,17 +22,19 @@ local numbers = {
   long = makenumberclass(8),
 }
 
-local function extendwithlength(numberclass)
-  local formatprefix = "I"
-  local length = 4
-  local format = formatprefix .. length .. numberclass.format
-  return class.extends(numberclass) {
+local lengthconf = {
+  formatprefix = "I",
+  size = 4,
+}
+local function extendwithlength(baseclass)
+  local format = lengthconf.formatprefix .. lengthconf.size .. baseclass.format
+  return class.extends(baseclass) {
     pack = function(value)
-      return string.pack(format, numberclass.length, value)
+      return string.pack(format, baseclass.length, value)
     end,
     unpack = function(data)
       local _, value = string.unpack(format, data)
-      return value, numberclass.length + length
+      return value, baseclass.length + lengthconf.size
     end,
   }
 end
@@ -42,6 +44,20 @@ local numberswithlength = {
   short = extendwithlength(numbers.short),
   int = extendwithlength(numbers.int),
   long = extendwithlength(numbers.long),
+}
+
+local strformatprefix = "c"
+local lenstrformatprefix = lengthconf.formatprefix .. lengthconf.size .. strformatprefix
+local str = class {
+  pack = function(value)
+    local length = #value
+    return string.pack(lenstrformatprefix .. length, length, value)
+  end,
+  unpack = function(data)
+    local length, next = string.unpack(lengthconf.formatprefix .. lengthconf.size, data)
+    local value = string.unpack(strformatprefix .. length, data:sub(next))
+    return value, lengthconf.size + length
+  end,
 }
 
 local function newstate(data)
@@ -103,14 +119,6 @@ local Array = function(serializer)
   }
 end
 
-local StringSerializer = {
-  unpack = function(data)
-    local length, next = string.unpack("I4", data)
-    local value = string.unpack("c" .. length, data:sub(next))
-    return value, 4 + length
-  end,
-}
-
 local Dictionary = function(serializers)
   local countserializer = numbers.short
   local keyserializer = numbers.short
@@ -137,7 +145,7 @@ local Dictionary = function(serializers)
         local key = partialunpack(keyserializer, state)
         local serializer = serializers[key]
         if not serializer then
-          serializer = StringSerializer
+          serializer = str
         end
         local value = partialunpack(serializer, state)
         values[key] = value
@@ -156,6 +164,7 @@ return {
   LenShort = numberswithlength.short,
   LenInt = numberswithlength.int,
   LenLong = numberswithlength.long,
+  LenStr = str,
   Sequence = Sequence,
   Array = Array,
   Dictionary = Dictionary,

@@ -69,6 +69,18 @@ testnumber {
   deserialized = 0x0a09080706050403,
 }
 
+local Str = serializers.LenStr
+
+Test_string_with_length = {
+
+  test_can_serialize_value = function()
+    local value = "abc"
+    local expected = "\x03\x00\x00\x00abc"
+    local actual = Str.pack(value)
+    lu.assert_equals(actual, expected)
+  end,
+}
+
 local Seq = serializers.Sequence
 
 Test_sequence = {
