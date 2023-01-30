@@ -9,7 +9,7 @@ local function makenumberclass(size)
       return string.pack(format, value)
     end,
     unpack = function(data)
-      return string.unpack(format, data)
+      return string.unpack(format, data), size
     end,
     length = size,
   }
@@ -32,9 +32,8 @@ local function extendwithlength(numberclass)
     end,
     unpack = function(data)
       local _, value = string.unpack(format, data)
-      return value
+      return value, numberclass.length + length
     end,
-    length = numberclass.length + length,
   }
 end
 
@@ -45,11 +44,21 @@ local numberswithlength = {
   long = extendwithlength(numbers.long),
 }
 
+local function newstate(data)
+  return {
+    data = data,
+    length = 0,
+  }
+end
+
+local function partialunpack(serializer, state)
+  local value, length = serializer.unpack(state.data)
+  state.data = state.data:sub(length + 1)
+  state.length = state.length + length
+  return value
+end
+
 local Sequence = function(serializers)
-  local totallength = 0
-  for _, serializer in ipairs(serializers) do
-    totallength = totallength + serializer.length
-  end
   return class {
     pack = function(values)
       local serialized = {}
@@ -60,18 +69,40 @@ local Sequence = function(serializers)
       return table.concat(serialized)
     end,
     unpack = function(data)
+      local state = newstate(data)
       local values = {}
       for i, serializer in ipairs(serializers) do
-        values[i] = serializer.unpack(data)
-        data = data:sub(serializer.length + 1)
+        values[i] = partialunpack(serializer, state)
       end
-      return values
+      return values, state.length
     end,
-    length = totallength,
   }
 end
 
-local Array = function()
+local Array = function(serializer)
+  local countserializer = numbers.short
+  local array
+  array = class {
+    pack = function(values)
+      local count = #values
+      local serialized = {}
+      table.insert(serialized, countserializer.pack(count))
+      for _, value in ipairs(values) do
+        table.insert(serialized, serializer.pack(value))
+      end
+      return table.concat(serialized)
+    end,
+    unpack = function(data)
+      local state = newstate(data)
+      local count = partialunpack(countserializer, state)
+      local values = {}
+      for i = 1, count do
+        values[i] = partialunpack(serializer, state)
+      end
+      return values, state.length
+    end,
+  }
+  return array
 end
 
 return {

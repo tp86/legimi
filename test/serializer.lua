@@ -113,6 +113,38 @@ local Arr = serializers.Array
 
 Test_array = {
 
+  test_can_serialize_values = function()
+    local arr = Arr(serializers.Short)
+    local expected = "\x02\x00\x11\x22\x33\x44"
+    local actual = arr.pack({ 0x2211, 0x4433 })
+    lu.assert_equals(actual, expected)
+  end,
+
+  test_can_deserialize_values = function()
+    local arr = Arr(serializers.Byte)
+    local value = "\x02\x00\x03\x04"
+    local expected = { 3, 4 }
+    local actual = arr.unpack(value)
+    lu.assert_equals(actual, expected)
+  end,
+}
+
+Test_array_nested = {
+
+  test_can_serialize_values = function()
+    local arr = Arr(Arr(serializers.Byte))
+    local expected = "\x01\x00\x01\x00\x02"
+    local actual = arr.pack({ { 2 } })
+    lu.assert_equals(actual, expected)
+  end,
+
+  test_can_deserialize_values = function()
+    local arr = Arr(Arr(serializers.Byte))
+    local value = "\x01\x00\x01\x00\x03"
+    local expected = { { 3 } }
+    local actual = arr.unpack(value)
+    lu.assert_equals(actual, expected)
+  end,
 }
 
 local runner = not ... or #arg > 0
