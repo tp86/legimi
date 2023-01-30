@@ -81,8 +81,7 @@ end
 
 local Array = function(serializer)
   local countserializer = numbers.short
-  local array
-  array = class {
+  return class {
     pack = function(values)
       local count = #values
       local serialized = {}
@@ -102,7 +101,50 @@ local Array = function(serializer)
       return values, state.length
     end,
   }
-  return array
+end
+
+local StringSerializer = {
+  unpack = function(data)
+    local length, next = string.unpack("I4", data)
+    local value = string.unpack("c" .. length, data:sub(next))
+    return value, 4 + length
+  end,
+}
+
+local Dictionary = function(serializers)
+  local countserializer = numbers.short
+  local keyserializer = numbers.short
+  return class {
+    pack = function(values)
+      local count = 0
+      local serialized = {}
+      for key, value in pairs(values) do
+        local serializer = serializers[key]
+        if serializer then
+          table.insert(serialized, keyserializer.pack(key))
+          table.insert(serialized, serializer.pack(value))
+          count = count + 1
+        end
+      end
+      table.insert(serialized, 1, countserializer.pack(count))
+      return table.concat(serialized)
+    end,
+    unpack = function(data)
+      local state = newstate(data)
+      local count = partialunpack(countserializer, state)
+      local values = {}
+      for _ = 1, count do
+        local key = partialunpack(keyserializer, state)
+        local serializer = serializers[key]
+        if not serializer then
+          serializer = StringSerializer
+        end
+        local value = partialunpack(serializer, state)
+        values[key] = value
+      end
+      return values, state.length
+    end,
+  }
 end
 
 return {
@@ -116,4 +158,5 @@ return {
   LenLong = numberswithlength.long,
   Sequence = Sequence,
   Array = Array,
+  Dictionary = Dictionary,
 }

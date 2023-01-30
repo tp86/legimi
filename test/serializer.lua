@@ -147,6 +147,64 @@ Test_array_nested = {
   end,
 }
 
+local Dict = serializers.Dictionary
+
+Test_dictionary = {
+
+  test_can_serialize_values = function()
+    local dict = Dict { [0] = serializers.Byte, serializers.LenInt }
+    local expectedparts = {
+      "\x00\x00\x01",
+      "\x01\x00\x04\x00\x00\x00\x02\x00\x00\x00",
+    }
+    local actual = dict.pack { [0] = 1, 2, 3 }
+    lu.assert_equals(actual:sub(1, 2), "\x02\x00")
+    for _, part in ipairs(expectedparts) do
+      lu.assert_str_contains(actual, part)
+    end
+  end,
+
+  test_can_deserialize_values = function()
+    local dict = Dict { [0] = serializers.LenByte, serializers.LenShort }
+    local value = "\x02\x00\x01\x00\x02\x00\x00\x00\x03\x00\x00\x00\x01\x00\x00\x00\x04"
+    local expected = { [0] = 4, 3 }
+    local actual = dict.unpack(value)
+    lu.assert_equals(actual, expected)
+  end,
+
+  test_can_deserialize_unknown_key_given_length = function()
+    local dict = Dict { [0] = serializers.Byte }
+    local value = "\x01\x00\x01\x00\x01\x00\x00\x00\x03"
+    local expected = { "\x03" }
+    local actual = dict.unpack(value)
+    lu.assert_equals(actual, expected)
+  end,
+}
+
+Test_dictionary_nested = {
+
+  test_can_serialize_values = function()
+    local dict = Dict { [0] = Dict { serializers.Byte }, serializers.LenShort }
+    local expectedparts = {
+      "\x00\x00\x01\x00\x01\x00\x03",
+      "\x01\x00\x02\x00\x00\x00\x04\x00",
+    }
+    local actual = dict.pack { [0] = { 3 }, 4 }
+    lu.assert_equals(actual:sub(1, 2), "\x02\x00")
+    for _, part in ipairs(expectedparts) do
+      lu.assert_str_contains(actual, part)
+    end
+  end,
+
+  test_can_deserialize_values = function()
+    local dict = Dict { [0] = Dict { serializers.Byte }, serializers.Byte }
+    local value = "\x02\x00\x00\x00\x01\x00\x01\x00\x01\x01\x00\x02"
+    local expected = { [0] = { 1 }, 2 }
+    local actual = dict.unpack(value)
+    lu.assert_equals(actual, expected)
+  end,
+}
+
 local runner = not ... or #arg > 0
 if runner then
   os.exit(lu.LuaUnit.run())
