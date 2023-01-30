@@ -11,9 +11,7 @@ local function makenumberclass(size)
     unpack = function(data)
       return string.unpack(format, data)
     end,
-    length = function()
-      return size
-    end,
+    length = size,
   }
 end
 
@@ -26,19 +24,17 @@ local numbers = {
 
 local function extendwithlength(numberclass)
   local formatprefix = "I"
-  local lengthsize = 4
-  local format = formatprefix .. lengthsize .. numberclass.format
+  local length = 4
+  local format = formatprefix .. length .. numberclass.format
   return class.extends(numberclass) {
     pack = function(value)
-      return string.pack(format, numberclass.length(), value)
+      return string.pack(format, numberclass.length, value)
     end,
     unpack = function(data)
       local _, value = string.unpack(format, data)
       return value
     end,
-    length = function()
-      return numberclass.length() + lengthsize
-    end,
+    length = numberclass.length + length,
   }
 end
 
@@ -50,6 +46,10 @@ local numberswithlength = {
 }
 
 local Sequence = function(serializers)
+  local totallength = 0
+  for _, serializer in ipairs(serializers) do
+    totallength = totallength + serializer.length
+  end
   return class {
     pack = function(values)
       local serialized = {}
@@ -63,17 +63,11 @@ local Sequence = function(serializers)
       local values = {}
       for i, serializer in ipairs(serializers) do
         values[i] = serializer.unpack(data)
-        data = data:sub(serializer.length() + 1)
+        data = data:sub(serializer.length + 1)
       end
       return values
     end,
-    length = function()
-      local totallength = 0
-      for _, serializer in ipairs(serializers) do
-        totallength = totallength + serializer.length()
-      end
-      return totallength
-    end,
+    length = totallength,
   }
 end
 
