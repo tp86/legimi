@@ -155,17 +155,60 @@ local Dictionary = function(serializers)
   }
 end
 
+local function makenewnumberclass(size)
+  local formatprefix = "i"
+  local format = formatprefix .. size
+  return class {
+    pack = function(value)
+      return string.pack(format, value)
+    end,
+    unpack = function(data)
+      return string.unpack(format, data), size
+    end,
+  }
+end
+
+local newnumbers = {
+  short = makenewnumberclass(2)
+}
+
+local function newextendwithlength(baseclass)
+  local formatprefix = "I"
+  local lengthsize = 4
+  local format = formatprefix .. lengthsize
+  return class.extends(baseclass) {
+    pack = function(value)
+      local serialized = baseclass.pack(value)
+      local length = string.pack(format, #serialized)
+      return length .. serialized
+    end,
+    unpack = function(data)
+      local length = string.unpack(format, data)
+      data = data:sub(lengthsize + 1)
+      local value = baseclass.unpack(data)
+      return value, lengthsize + length
+    end,
+  }
+end
+
+local newlengthnumbers = {
+  short = newextendwithlength(newnumbers.short)
+}
+
 return {
-  Byte = numbers.byte,
-  Short = numbers.short,
-  Int = numbers.int,
-  Long = numbers.long,
-  LenByte = numberswithlength.byte,
-  LenShort = numberswithlength.short,
-  LenInt = numberswithlength.int,
-  LenLong = numberswithlength.long,
-  LenStr = str,
+  RawByte = numbers.byte,
+  RawShort = numbers.short,
+  RawInt = numbers.int,
+  RawLong = numbers.long,
+  Byte = numberswithlength.byte,
+  Short = numberswithlength.short,
+  Int = numberswithlength.int,
+  Long = numberswithlength.long,
+  Str = str,
   Sequence = Sequence,
   Array = Array,
   Dictionary = Dictionary,
+
+  NewShort = newnumbers.short,
+  NewLenShort = newlengthnumbers.short,
 }

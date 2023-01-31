@@ -22,54 +22,54 @@ local function testnumber(what)
 end
 
 testnumber {
-  class = "Byte",
+  class = "RawByte",
   serialized = "\x03",
   deserialized = 3,
 }
 
 testnumber {
-  class = "Short",
+  class = "RawShort",
   serialized = "\x03\x04",
   deserialized = 0x0403,
 }
 
 testnumber {
-  class = "Int",
+  class = "RawInt",
   serialized = "\x03\x04\x05\x06",
   deserialized = 0x06050403,
 }
 
 testnumber {
-  class = "Long",
+  class = "RawLong",
   serialized = "\x03\x04\x05\x06\x07\x08\x09\x0a",
   deserialized = 0x0a09080706050403,
 }
 
 testnumber {
-  class = "LenByte",
+  class = "Byte",
   serialized = "\x01\x00\x00\x00\x03",
   deserialized = 3,
 }
 
 testnumber {
-  class = "LenShort",
+  class = "Short",
   serialized = "\x02\x00\x00\x00\x03\x04",
   deserialized = 0x0403,
 }
 
 testnumber {
-  class = "LenInt",
+  class = "Int",
   serialized = "\x04\x00\x00\x00\x03\x04\x05\x06",
   deserialized = 0x06050403,
 }
 
 testnumber {
-  class = "LenLong",
+  class = "Long",
   serialized = "\x08\x00\x00\x00\x03\x04\x05\x06\x07\x08\x09\x0a",
   deserialized = 0x0a09080706050403,
 }
 
-local Str = serializers.LenStr
+local Str = serializers.Str
 
 Test_string_with_length = {
 
@@ -93,14 +93,14 @@ local Seq = serializers.Sequence
 Test_sequence = {
 
   test_can_serialize_values = function()
-    local seq = Seq { serializers.Byte, serializers.LenShort }
+    local seq = Seq { serializers.RawByte, serializers.Short }
     local expected = "\x05\x02\x00\x00\x00\x06\x00"
     local actual = seq.pack({ 5, 6 })
     lu.assert_equals(actual, expected)
   end,
 
   test_can_deserialize_values = function()
-    local seq = Seq { serializers.LenByte, serializers.Short }
+    local seq = Seq { serializers.Byte, serializers.RawShort }
     local value = "\x01\x00\x00\x00\x07\x08\x00"
     local expected = { 7, 8 }
     local actual = seq.unpack(value)
@@ -108,19 +108,19 @@ Test_sequence = {
   end,
 }
 
-local nested = Seq { serializers.Byte, serializers.Byte }
+local nested = Seq { serializers.RawByte, serializers.RawByte }
 
 Test_sequence_nested = {
 
   test_can_serialize_values = function()
-    local seq = Seq { nested, serializers.Short }
+    local seq = Seq { nested, serializers.RawShort }
     local expected = "\x08\x09\x0a\x00"
     local actual = seq.pack({ { 8, 9 }, 10 })
     lu.assert_equals(actual, expected)
   end,
 
   test_can_deserialize_values = function()
-    local seq = Seq { serializers.Byte, nested, serializers.Byte }
+    local seq = Seq { serializers.RawByte, nested, serializers.RawByte }
     local value = "\x0b\x0c\x0d\x0e"
     local expected = { 11, { 12, 13 }, 14 }
     local actual = seq.unpack(value)
@@ -133,14 +133,14 @@ local Arr = serializers.Array
 Test_array = {
 
   test_can_serialize_values = function()
-    local arr = Arr(serializers.Short)
+    local arr = Arr(serializers.RawShort)
     local expected = "\x02\x00\x11\x22\x33\x44"
     local actual = arr.pack({ 0x2211, 0x4433 })
     lu.assert_equals(actual, expected)
   end,
 
   test_can_deserialize_values = function()
-    local arr = Arr(serializers.Byte)
+    local arr = Arr(serializers.RawByte)
     local value = "\x02\x00\x03\x04"
     local expected = { 3, 4 }
     local actual = arr.unpack(value)
@@ -151,14 +151,14 @@ Test_array = {
 Test_array_nested = {
 
   test_can_serialize_values = function()
-    local arr = Arr(Arr(serializers.Byte))
+    local arr = Arr(Arr(serializers.RawByte))
     local expected = "\x01\x00\x01\x00\x02"
     local actual = arr.pack({ { 2 } })
     lu.assert_equals(actual, expected)
   end,
 
   test_can_deserialize_values = function()
-    local arr = Arr(Arr(serializers.Byte))
+    local arr = Arr(Arr(serializers.RawByte))
     local value = "\x01\x00\x01\x00\x03"
     local expected = { { 3 } }
     local actual = arr.unpack(value)
@@ -171,7 +171,7 @@ local Dict = serializers.Dictionary
 Test_dictionary = {
 
   test_can_serialize_values = function()
-    local dict = Dict { [0] = serializers.Byte, serializers.LenInt }
+    local dict = Dict { [0] = serializers.RawByte, serializers.Int }
     local expectedparts = {
       "\x00\x00\x01",
       "\x01\x00\x04\x00\x00\x00\x02\x00\x00\x00",
@@ -184,7 +184,7 @@ Test_dictionary = {
   end,
 
   test_can_deserialize_values = function()
-    local dict = Dict { [0] = serializers.LenByte, serializers.LenShort }
+    local dict = Dict { [0] = serializers.Byte, serializers.Short }
     local value = "\x02\x00\x01\x00\x02\x00\x00\x00\x03\x00\x00\x00\x01\x00\x00\x00\x04"
     local expected = { [0] = 4, 3 }
     local actual = dict.unpack(value)
@@ -192,7 +192,7 @@ Test_dictionary = {
   end,
 
   test_can_deserialize_unknown_key_given_length = function()
-    local dict = Dict { [0] = serializers.Byte }
+    local dict = Dict { [0] = serializers.RawByte }
     local value = "\x01\x00\x01\x00\x01\x00\x00\x00\x03"
     local expected = { "\x03" }
     local actual = dict.unpack(value)
@@ -203,7 +203,7 @@ Test_dictionary = {
 Test_dictionary_nested = {
 
   test_can_serialize_values = function()
-    local dict = Dict { [0] = Dict { serializers.Byte }, serializers.LenShort }
+    local dict = Dict { [0] = Dict { serializers.RawByte }, serializers.Short }
     local expectedparts = {
       "\x00\x00\x01\x00\x01\x00\x03",
       "\x01\x00\x02\x00\x00\x00\x04\x00",
@@ -216,10 +216,45 @@ Test_dictionary_nested = {
   end,
 
   test_can_deserialize_values = function()
-    local dict = Dict { [0] = Dict { serializers.Byte }, serializers.Byte }
+    local dict = Dict { [0] = Dict { serializers.RawByte }, serializers.RawByte }
     local value = "\x02\x00\x00\x00\x01\x00\x01\x00\x01\x01\x00\x02"
     local expected = { [0] = { 1 }, 2 }
     local actual = dict.unpack(value)
+    lu.assert_equals(actual, expected)
+  end,
+}
+
+Test_new = {
+
+  test_serializing_without_length = function()
+    local serializer = serializers.NewShort
+    local value = 5
+    local expected = "\x05\x00"
+    local actual = serializer.pack(value)
+    lu.assert_equals(actual, expected)
+  end,
+
+  test_serializing_with_length = function()
+    local serializer = serializers.NewLenShort
+    local value = 5
+    local expected = "\x02\x00\x00\x00\x05\x00"
+    local actual = serializer.pack(value)
+    lu.assert_equals(actual, expected)
+  end,
+
+  test_deserializing_without_length = function()
+    local serializer = serializers.NewShort
+    local value = "\x06\x00"
+    local expected = 6
+    local actual = serializer.unpack(value)
+    lu.assert_equals(actual, expected)
+  end,
+
+  test_deserializing_with_length = function()
+    local serializer = serializers.NewLenShort
+    local value = "\x02\x00\x00\x00\x06\x00"
+    local expected = 6
+    local actual = serializer.unpack(value)
     lu.assert_equals(actual, expected)
   end,
 }
