@@ -79,6 +79,13 @@ Test_string_with_length = {
     local actual = Str.pack(value)
     lu.assert_equals(actual, expected)
   end,
+
+  test_can_deserialize_value = function()
+    local value = "\x04\x00\x00\x00abcd"
+    local expected = "abcd"
+    local actual = Str.unpack(value)
+    lu.assert_equals(actual, expected)
+  end,
 }
 
 local Seq = serializers.Sequence
