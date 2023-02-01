@@ -4,14 +4,12 @@ local function makenumberclass(size)
   local formatprefix = "i"
   local format = formatprefix .. size
   return class {
-    format = format,
     pack = function(value)
       return string.pack(format, value)
     end,
     unpack = function(data)
       return string.unpack(format, data), size
     end,
-    length = size,
   }
 end
 
@@ -22,19 +20,21 @@ local numbers = {
   long = makenumberclass(8),
 }
 
-local lengthconf = {
-  formatprefix = "I",
-  size = 4,
-}
 local function extendwithlength(baseclass)
-  local format = lengthconf.formatprefix .. lengthconf.size .. baseclass.format
+  local formatprefix = "I"
+  local lengthsize = 4
+  local format = formatprefix .. lengthsize
   return class.extends(baseclass) {
     pack = function(value)
-      return string.pack(format, baseclass.length, value)
+      local serialized = baseclass.pack(value)
+      local length = string.pack(format, #serialized)
+      return length .. serialized
     end,
     unpack = function(data)
-      local _, value = string.unpack(format, data)
-      return value, baseclass.length + lengthconf.size
+      local length = string.unpack(format, data)
+      data = data:sub(lengthsize + 1, lengthsize + length)
+      local value = baseclass.unpack(data)
+      return value, lengthsize + length
     end,
   }
 end
@@ -46,19 +46,20 @@ local numberswithlength = {
   long = extendwithlength(numbers.long),
 }
 
-local strformatprefix = "c"
-local lenstrformatprefix = lengthconf.formatprefix .. lengthconf.size .. strformatprefix
-local str = class {
+local strfields = {
+  formatprefix = "c",
+}
+local rawstr = class {
   pack = function(value)
     local length = #value
-    return string.pack(lenstrformatprefix .. length, length, value)
+    return string.pack(strfields.formatprefix .. length, value)
   end,
   unpack = function(data)
-    local length, next = string.unpack(lengthconf.formatprefix .. lengthconf.size, data)
-    local value = string.unpack(strformatprefix .. length, data:sub(next))
-    return value, lengthconf.size + length
+    local length = #data
+    return string.unpack(strfields.formatprefix .. length, data)
   end,
 }
+local str = extendwithlength(rawstr)
 
 local function newstate(data)
   return {
@@ -155,46 +156,6 @@ local Dictionary = function(serializers)
   }
 end
 
-local function makenewnumberclass(size)
-  local formatprefix = "i"
-  local format = formatprefix .. size
-  return class {
-    pack = function(value)
-      return string.pack(format, value)
-    end,
-    unpack = function(data)
-      return string.unpack(format, data), size
-    end,
-  }
-end
-
-local newnumbers = {
-  short = makenewnumberclass(2)
-}
-
-local function newextendwithlength(baseclass)
-  local formatprefix = "I"
-  local lengthsize = 4
-  local format = formatprefix .. lengthsize
-  return class.extends(baseclass) {
-    pack = function(value)
-      local serialized = baseclass.pack(value)
-      local length = string.pack(format, #serialized)
-      return length .. serialized
-    end,
-    unpack = function(data)
-      local length = string.unpack(format, data)
-      data = data:sub(lengthsize + 1)
-      local value = baseclass.unpack(data)
-      return value, lengthsize + length
-    end,
-  }
-end
-
-local newlengthnumbers = {
-  short = newextendwithlength(newnumbers.short)
-}
-
 return {
   RawByte = numbers.byte,
   RawShort = numbers.short,
@@ -208,7 +169,4 @@ return {
   Sequence = Sequence,
   Array = Array,
   Dictionary = Dictionary,
-
-  NewShort = newnumbers.short,
-  NewLenShort = newlengthnumbers.short,
 }

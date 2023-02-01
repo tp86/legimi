@@ -224,37 +224,19 @@ Test_dictionary_nested = {
   end,
 }
 
-Test_new = {
+Test_compound = {
 
-  test_serializing_without_length = function()
-    local serializer = serializers.NewShort
-    local value = 5
-    local expected = "\x05\x00"
-    local actual = serializer.pack(value)
+  test_serialize_sequence_starting_with_string = function()
+    local seq = Seq { serializers.Str, serializers.Byte }
+    local expected = "\x01\x00\x00\x00a\x01\x00\x00\x00\x99"
+    local actual = seq.pack({ "a", -103 })
     lu.assert_equals(actual, expected)
   end,
 
-  test_serializing_with_length = function()
-    local serializer = serializers.NewLenShort
-    local value = 5
-    local expected = "\x02\x00\x00\x00\x05\x00"
-    local actual = serializer.pack(value)
-    lu.assert_equals(actual, expected)
-  end,
-
-  test_deserializing_without_length = function()
-    local serializer = serializers.NewShort
-    local value = "\x06\x00"
-    local expected = 6
-    local actual = serializer.unpack(value)
-    lu.assert_equals(actual, expected)
-  end,
-
-  test_deserializing_with_length = function()
-    local serializer = serializers.NewLenShort
-    local value = "\x02\x00\x00\x00\x06\x00"
-    local expected = 6
-    local actual = serializer.unpack(value)
+  test_deserialize_sequence_starting_with_string = function()
+    local seq = Seq { serializers.Str, serializers.Byte }
+    local expected = { "a", -103 }
+    local actual = seq.unpack("\x01\x00\x00\x00a\x01\x00\x00\x00\x99")
     lu.assert_equals(actual, expected)
   end,
 }
