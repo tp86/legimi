@@ -1,5 +1,5 @@
-require "test.serializersuite"
-require "test.commsuite"
+require "test.packet"
+require "test.data"
 
 local runner = not ... or #arg > 0
 if runner then
