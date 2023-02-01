@@ -1,6 +1,7 @@
 local class = require "class"
 local init = class.constructor
 local ser = require "serializer"
+local requests = require "data.request"
 
 local packetversion = 17
 
@@ -19,6 +20,21 @@ local Packet = class {
   end,
 }
 
+local types = {
+  request = {
+    auth = 80,
+  }
+}
+
+local function auth(login, password, deviceid)
+  local type = types.request.auth
+  local content = requests.Auth(login, password, deviceid):pack()
+  return Packet(type, content)
+end
+
 return {
   Packet = Packet,
+  request = {
+    auth = auth,
+  }
 }
