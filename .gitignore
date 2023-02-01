@@ -1,2 +1,3 @@
 .luarocks/
 luacov.*
+/test/live.lua
