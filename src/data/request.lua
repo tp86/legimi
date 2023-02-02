@@ -1,17 +1,14 @@
-local class = require "class"
 local ser = require "serializer"
 local Packet = require "packet".Packet
 
 local appversion = require "config".appversion
 
-local RequestBase = class {
-  pack = function(cls, data)
-    local content = cls.serializer.pack(data)
-    return Packet.pack(cls.type, content)
-  end,
-}
+local function packrequest(request, data)
+  local content = request.serializer.pack(data)
+  return Packet.pack(request.type, content)
+end
 
-local Auth = class.extends(RequestBase) {
+local Auth = {
   type = 80,
   serializer = ser.Dictionary {
     [0] = ser.Str, -- login
@@ -19,8 +16,8 @@ local Auth = class.extends(RequestBase) {
     ser.Long, -- deviceid
     ser.Str -- appversion
   },
-  pack = function(cls, login, password, deviceid)
-    return RequestBase.pack(cls, { [0] = login, password, deviceid, appversion })
+  pack = function(self, login, password, deviceid)
+    return packrequest(self, { [0] = login, password, deviceid, appversion })
   end,
 }
 

@@ -1,12 +1,11 @@
-local class = require "class"
 local ser = require "serializer"
 
 local packetversion = require "config".packetversion
 
-local packetbase = ser.Sequence { ser.RawInt, ser.RawShort, ser.Str }
-local Packet = class.extends(packetbase) {
+local packetserializer = ser.Sequence { ser.RawInt, ser.RawShort, ser.Str }
+local Packet = {
   pack = function(type, content)
-    return packetbase.pack({ packetversion, type, content })
+    return packetserializer.pack({ packetversion, type, content })
   end,
 }
 

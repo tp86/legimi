@@ -1,9 +1,7 @@
-local class = require "class"
-
-local function makenumberclass(size)
+local function makenumberserializer(size)
   local formatprefix = "i"
   local format = formatprefix .. size
-  return class {
+  return {
     pack = function(value)
       return string.pack(format, value)
     end,
@@ -14,26 +12,26 @@ local function makenumberclass(size)
 end
 
 local numbers = {
-  byte = makenumberclass(1),
-  short = makenumberclass(2),
-  int = makenumberclass(4),
-  long = makenumberclass(8),
+  byte = makenumberserializer(1),
+  short = makenumberserializer(2),
+  int = makenumberserializer(4),
+  long = makenumberserializer(8),
 }
 
-local function extendwithlength(baseclass)
+local function extendwithlength(baseserializer)
   local formatprefix = "I"
   local lengthsize = 4
   local format = formatprefix .. lengthsize
-  return class.extends(baseclass) {
+  return {
     pack = function(value)
-      local serialized = baseclass.pack(value)
+      local serialized = baseserializer.pack(value)
       local length = string.pack(format, #serialized)
       return length .. serialized
     end,
     unpack = function(data)
       local length = string.unpack(format, data)
       data = data:sub(lengthsize + 1, lengthsize + length)
-      local value = baseclass.unpack(data)
+      local value = baseserializer.unpack(data)
       return value, lengthsize + length
     end,
   }
@@ -49,7 +47,7 @@ local numberswithlength = {
 local strfields = {
   formatprefix = "c",
 }
-local rawstr = class {
+local rawstr = {
   pack = function(value)
     local length = #value
     return string.pack(strfields.formatprefix .. length, value)
@@ -76,7 +74,7 @@ local function partialunpack(serializer, state)
 end
 
 local Sequence = function(serializers)
-  return class {
+  return {
     pack = function(values)
       local serialized = {}
       for i, serializer in ipairs(serializers) do
@@ -98,7 +96,7 @@ end
 
 local Array = function(serializer)
   local countserializer = numbers.short
-  return class {
+  return {
     pack = function(values)
       local count = #values
       local serialized = {}
@@ -123,7 +121,7 @@ end
 local Dictionary = function(serializers)
   local countserializer = numbers.short
   local keyserializer = numbers.short
-  return class {
+  return {
     pack = function(values)
       local count = 0
       local serialized = {}
