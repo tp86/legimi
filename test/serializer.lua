@@ -2,68 +2,67 @@ local lu = require "luaunit"
 
 local serializers = require "serializer"
 
-local function testnumber(what)
-  local serializername = what.name
+local function testnumberserializer(what)
+  local name = what.name
   local serialized = what.serialized
   local deserialized = what.deserialized
+  local serializer = serializers[name]
 
-  _ENV["Test_" .. serializername] = {
+  _ENV["Test_" .. name] = {
 
     test_can_serialize_value = function()
-      local serializer = serializers[serializername]
       lu.assert_equals(serializer.pack(deserialized), serialized)
     end,
 
     test_can_deserialize_value = function()
-      local serializer = serializers[serializername]
       lu.assert_equals(serializer.unpack(serialized), deserialized)
     end,
   }
 end
 
-testnumber {
+testnumberserializer {
   name = "RawByte",
   serialized = "\x03",
   deserialized = 3,
 }
 
-testnumber {
+testnumberserializer {
   name = "RawShort",
   serialized = "\x03\x04",
   deserialized = 0x0403,
 }
 
-testnumber {
+testnumberserializer {
   name = "RawInt",
   serialized = "\x03\x04\x05\x06",
   deserialized = 0x06050403,
 }
 
-testnumber {
+testnumberserializer {
   name = "RawLong",
   serialized = "\x03\x04\x05\x06\x07\x08\x09\x0a",
   deserialized = 0x0a09080706050403,
 }
 
-testnumber {
+testnumberserializer {
   name = "Byte",
   serialized = "\x01\x00\x00\x00\x03",
   deserialized = 3,
 }
 
-testnumber {
+testnumberserializer {
   name = "Short",
   serialized = "\x02\x00\x00\x00\x03\x04",
   deserialized = 0x0403,
 }
 
-testnumber {
+testnumberserializer {
   name = "Int",
   serialized = "\x04\x00\x00\x00\x03\x04\x05\x06",
   deserialized = 0x06050403,
 }
 
-testnumber {
+testnumberserializer {
   name = "Long",
   serialized = "\x08\x00\x00\x00\x03\x04\x05\x06\x07\x08\x09\x0a",
   deserialized = 0x0a09080706050403,
