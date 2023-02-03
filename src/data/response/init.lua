@@ -1,4 +1,5 @@
 local ser = require "serializer"
+local errors = require(... .. ".errors")
 
 local Auth = {
   serializer = ser.Dictionary {
@@ -12,9 +13,17 @@ local Auth = {
   end,
 }
 
-local types = {
+local types = setmetatable({
   [16386] = Auth,
-}
+}, {
+  __index = function(_, msgtype)
+    local err = errors[msgtype]
+    if err then
+      error("Error: " .. err, 0)
+    end
+    error("Unknown/unsupported response type received: " .. msgtype)
+  end,
+})
 
 return {
   types = types,

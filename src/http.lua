@@ -18,7 +18,7 @@ local function request(url, method)
   return req
 end
 
-local url = "https://app.legimi.pl/svc/sync/core.aspx"
+local url = require "config".url
 
 local function post(data)
   return request(url, "POST"):setbody(data):send()

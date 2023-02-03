@@ -1,3 +1,4 @@
 .luarocks/
 luacov.*
 /test/live.lua
+deviceid
