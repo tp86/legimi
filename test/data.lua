@@ -3,7 +3,7 @@ local lu = require "luaunit"
 local requests = require "data.request"
 
 local AuthReq = requests.Auth
-local Packet = require "packet".Packet
+local packet = require "packet"
 
 Test_auth_request = {
 
@@ -65,7 +65,7 @@ Test_auth_response = {
         \x63\x38\x61\x30\x37\x34\x65\x63\x39\x61\x36\x39\x34\x32\x62\x36\z
         \x39\x36\x31\x38\x32\x62\x62\x38\x62\x63\x34\x65\x38\x34\x34\x39"
     }
-    local actual = Packet.unpack(value)
+    local actual = packet.unpack(value)
     lu.assert_equals(actual.sessionid, expected.sessionid)
   end,
 }

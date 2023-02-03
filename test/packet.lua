@@ -1,6 +1,6 @@
 local lu = require "luaunit"
 
-local Packet = require "packet".Packet
+local packet = require "packet"
 
 Test_packet = {
 
@@ -8,7 +8,7 @@ Test_packet = {
     local type = -1
     local content = ""
     local expected = "\x11\x00\x00\x00\xff\xff\x00\x00\x00\x00"
-    local actual = Packet.pack(type, content)
+    local actual = packet.pack(type, content)
     lu.assert_equals(actual, expected)
   end,
 }

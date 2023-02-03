@@ -1,11 +1,11 @@
 local ser = require "serializer"
-local Packet = require "packet".Packet
+local packet = require "packet"
 
 local appversion = require "config".appversion
 
 local function packrequest(request, data)
   local content = request.serializer.pack(data)
-  return Packet.pack(request.type, content)
+  return packet.pack(request.type, content)
 end
 
 local Auth = {
