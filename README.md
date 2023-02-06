@@ -19,7 +19,7 @@ luarocks --lua-version 5.4 --tree .luarocks install http
 
 ## Development
 
-Written with TDD using LuaUnit
+Written with TDD (serialization part, at least) using LuaUnit
 
 ### Dependencies
 - LuaUnit
