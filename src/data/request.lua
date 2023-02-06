@@ -5,7 +5,7 @@ local appversion = require "config".appversion
 
 local function packrequest(request, data)
   local content = request.serializer.pack(data)
-  return packet.pack(request.type, content)
+  return packet.serializer.pack({ packet.version, request.type, content })
 end
 
 local Auth = {
@@ -21,6 +21,24 @@ local Auth = {
   end,
 }
 
+local Activate = {
+  type = 66,
+  serializer = ser.Sequence {
+    ser.RawLong, -- empty device id
+    ser.ShortStr, -- login
+    ser.ShortStr, -- password
+    ser.ShortStr, -- serial number
+    ser.ShortStr, -- locale
+  },
+  pack = function(self, login, password, serialno)
+    local deviceid = 0
+    serialno = "Kindle||Kindle||" .. serialno .. "||Kindle"
+    local locale = ""
+    return packrequest(self, { deviceid, login, password, serialno, locale })
+  end,
+}
+
 return {
   Auth = Auth,
+  Activate = Activate,
 }

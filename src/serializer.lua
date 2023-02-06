@@ -18,9 +18,9 @@ local numbers = {
   long = makenumberserializer(8),
 }
 
-local function extendwithlength(baseserializer)
+local function extendwithlength(baseserializer, len)
   local formatprefix = "I"
-  local lengthsize = 4
+  local lengthsize = len or 4
   local format = formatprefix .. lengthsize
   return {
     pack = function(value)
@@ -58,6 +58,7 @@ local rawstr = {
   end,
 }
 local str = extendwithlength(rawstr)
+local shortstr = extendwithlength(rawstr, 2)
 
 local function newstate(data)
   return {
@@ -164,6 +165,7 @@ return {
   Int = numberswithlength.int,
   Long = numberswithlength.long,
   Str = str,
+  ShortStr = shortstr,
   Sequence = Sequence,
   Array = Array,
   Dictionary = Dictionary,

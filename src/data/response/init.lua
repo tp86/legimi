@@ -13,8 +13,21 @@ local Auth = {
   end,
 }
 
+local Activate = {
+  serializer = ser.Dictionary {
+    [6] = ser.Long, -- deviceid
+  },
+  unpack = function(self, data)
+    local unpacked = self.serializer.unpack(data)
+    return {
+      deviceid = unpacked[6],
+    }
+  end,
+}
+
 local types = setmetatable({
   [16386] = Auth,
+  [16384] = Activate,
 }, {
   __index = function(_, msgtype)
     local err = errors[msgtype]
