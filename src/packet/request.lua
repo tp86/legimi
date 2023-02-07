@@ -1,85 +1,128 @@
-local serializer = require "serializer"
-local requests = {}
-requests.auth = {
+local ser = require "serializer"
+local packet = require "packet"
+
+local appversion = require "config".appversion
+
+local function packrequest(request, data)
+  local content = request.serializer.pack(data)
+  return packet.serializer.pack({ packet.version, request.type, content })
+end
+
+local Auth = {
   type = 80,
-  fields = {
-    user = 0,
-    password = 1,
-    deviceid = 2,
-    appversion = 3,
+  serializer = ser.Dictionary {
+    [0] = ser.Str, -- login
+    ser.Str, -- password
+    ser.Long, -- deviceid
+    ser.Str -- appversion
   },
-  constants = {
-    appversion = "1.5.0 Windows",
-  },
-}
-requests.auth.format = serializer.dict {
-  [requests.auth.fields.user] = serializer.str,
-  [requests.auth.fields.password] = serializer.str,
-  [requests.auth.fields.deviceid] = serializer.lenlong,
-  [requests.auth.fields.appversion] = serializer.str,
+  pack = function(self, login, password, deviceid)
+    return packrequest(self, { [0] = login, password, deviceid, appversion })
+  end,
 }
 
-requests.booklist = {
+local Activate = {
+  type = 66,
+  serializer = ser.Sequence {
+    ser.RawLong, -- empty device id
+    ser.ShortStr, -- login
+    ser.ShortStr, -- password
+    ser.ShortStr, -- serial number
+    ser.ShortStr, -- locale
+  },
+  pack = function(self, login, password, serialno)
+    local deviceid = 0
+    serialno = "Kindle||Kindle||" .. serialno .. "||Kindle"
+    local locale = ""
+    return packrequest(self, { deviceid, login, password, serialno, locale })
+  end,
+}
+
+local filterlisttypes = {
+  documentlist = 2,
+}
+
+local filtertypes = {
+  acceptedformats = 14,
+  idequal = 10,
+}
+
+local formats = {
+  mobi = 8,
+}
+
+local bookrequest = {
   type = 26,
-  fields = {
-    filtercount = 1,
-    sessionid = 2,
-    filterdata = 3,
-  },
-  constants = {
-    documentlistfilter = 0x02,
-    documentcontenttype = 0x0e,
-    contenttypelength = 2,
-    mobicontenttype = 0x08,
-  }
-}
-requests.booklist.format = {
-  [requests.booklist.fields.filtercount] = serializer.byte,
-  [requests.booklist.fields.sessionid] = serializer.bytes(32),
-  [requests.booklist.fields.filterdata] = { { -- sequence of sequences?
-    serializer.byte, -- list filter type (from AbstractQueryFilter.readFilter, 2 = DocumentListFilter)
-    serializer.short, -- filter type
-    serializer.short, -- len of content type
-    serializer.short, -- DocumentContentType
-  } }
-}
-local packet = require "packet.generic"
-
-local function makeauthreq(login, password, deviceid)
-  local req = requests.auth
-  local fields = req.fields
-  local data = {
-    [fields.user] = login,
-    [fields.password] = password,
-    [fields.deviceid] = deviceid,
-    [fields.appversion] = req.constants.appversion,
-  }
-  local content = serializer.pack(data, req.format)
-  return packet.make(req.type, content)
-end
-
-local function makebooklistreq(sessionid)
-  local req = requests.booklist
-  local fields = req.fields
-  local const = req.constants
-  local filters = {
-    {
-      const.documentlistfilter,
-      const.documentcontenttype,
-      const.contenttypelength,
-      const.mobicontenttype,
+  serializer = ser.Sequence {
+    ser.RawByte, -- number of filters (always 1, see comment below)
+    ser.RawStr, -- session id
+    ser.Sequence { -- will work with only one filter
+      ser.RawByte, -- filter list type
+      ser.RawShort, -- filter type
+      ser.RawStr, -- filter argument
     }
+  },
+  pack = function(self, sessionid)
+    local filtercount = 1
+    return packrequest(self, { filtercount, sessionid, self.filter })
+  end,
+}
+
+local bookrequestmt = {
+  __index = bookrequest,
+}
+
+local BookList = setmetatable({
+  filter = {
+    filterlisttypes.documentlist,
+    filtertypes.acceptedformats,
+    ser.ShortShort.pack(formats.mobi),
   }
-  local data = {
-    [fields.filtercount] = #filters,
-    [fields.sessionid] = sessionid,
-    [fields.filterdata] = filters,
-  }
-  local content = serializer.pack(data, req.format)
-  return packet.make(req.type, content)
-end
+}, bookrequestmt)
+
+local Book = setmetatable({
+  filter = {
+    filterlisttypes.documentlist,
+    filtertypes.idequal,
+  },
+  pack = function(self, sessionid, bookid)
+    self.filter[3] = ser.ShortLong.pack(bookid)
+    return bookrequest.pack(self, sessionid)
+  end,
+}, bookrequestmt)
+
+local BookDetails = {
+  type = 200,
+  serializer = ser.Sequence {
+    ser.RawLong, -- book id
+    ser.RawLong, -- book version
+    ser.RawStr, -- session id
+    ser.RawByte, -- get miniature?
+    ser.RawByte, -- get metadata only?
+    ser.RawLong, -- current version
+    ser.Array(ser.RawShort), -- whole parts
+    ser.Array(ser.RawShort), -- part fragments
+  },
+  pack = function(self, sessionid, bookid, bookversion)
+    local no = 0
+    local currentversion = -1
+    return packrequest(self, {
+      bookid,
+      bookversion,
+      sessionid,
+      no,
+      no,
+      currentversion,
+      { 0 },
+      {},
+    })
+  end
+}
 
 return {
-  auth = makeauthreq,
-  booklist = makebooklistreq,
+  Auth = Auth,
+  Activate = Activate,
+  BookList = BookList,
+  Book = Book,
+  BookDetails = BookDetails,
 }

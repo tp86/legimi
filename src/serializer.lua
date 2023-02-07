@@ -44,6 +44,11 @@ local numberswithlength = {
   long = extendwithlength(numbers.long),
 }
 
+local numberswithshortlength = {
+  short = extendwithlength(numbers.short, 2),
+  long = extendwithlength(numbers.long, 2),
+}
+
 local strfields = {
   formatprefix = "c",
 }
@@ -160,12 +165,15 @@ return {
   RawShort = numbers.short,
   RawInt = numbers.int,
   RawLong = numbers.long,
+  RawStr = rawstr,
   Byte = numberswithlength.byte,
   Short = numberswithlength.short,
   Int = numberswithlength.int,
   Long = numberswithlength.long,
   Str = str,
   ShortStr = shortstr,
+  ShortShort = numberswithshortlength.short,
+  ShortLong = numberswithshortlength.long,
   Sequence = Sequence,
   Array = Array,
   Dictionary = Dictionary,

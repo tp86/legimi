@@ -1,5 +1,5 @@
 local ser = require "serializer"
-local response = require "data.response".types
+local response = require "packet.response".types
 
 local version = require "config".packetversion
 

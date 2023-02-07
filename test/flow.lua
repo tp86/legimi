@@ -2,7 +2,7 @@ local lu = require "luaunit"
 
 local flow = require "flow"
 
-local data = require "test.testdata"
+local data = require "test.data"
 local withfile = require "util".withfile
 local config = require "config"
 
@@ -25,6 +25,26 @@ Test_flow = {
       deviceid = file:read("n")
     end)
     lu.assert_equals(deviceid, data.deviceid)
+  end,
+
+  test_get_book_list = function()
+    local sessionid = flow.getsessionid()
+    local books = flow.listbooks(sessionid)
+    lu.assert_true(#books > 0)
+  end,
+
+  test_get_book = function()
+    local sessionid = flow.getsessionid()
+    local book = flow.getbook(sessionid, data.bookid)
+    lu.assert_equals(book.id, data.bookid)
+    lu.assert_equals(book.title, data.booktitle)
+    lu.assert_equals(book.version, data.bookversion)
+  end,
+
+  test_get_book_details = function()
+    local sessionid = flow.getsessionid()
+    local details = flow.getbookdetails(sessionid, data.bookid)
+    print(details.size, details.url)
   end,
 }
 
