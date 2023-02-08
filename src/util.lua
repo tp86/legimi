@@ -21,8 +21,22 @@ local function printbs(bytes)
   end
 end
 
+local function ranges(total, size)
+  size = size or 81920
+  local next = 0
+  return function()
+    if next > total then
+      return nil
+    end
+    local from, to = next, math.min(next + size - 1, total)
+    next = to + 1
+    return from, to
+  end, nil, next
+end
+
 return {
   withfile = withfile,
   formatbook = formatbook,
   printbs = printbs,
+  ranges = ranges,
 }

@@ -24,6 +24,15 @@ local function post(data)
   return request(url, "POST"):setbody(data):send()
 end
 
+local function get(headers)
+  local req = request(url, "GET")
+  for _, header in ipairs(headers) do
+    req.headers:append(table.unpack(header))
+  end
+  return req:send()
+end
+
 return {
   post = post,
+  get = get,
 }

@@ -1,11 +1,13 @@
 local config = require "config"
 local post = require "http".post
+local get = require "http".get
 local packet = require "packet"
-local requests = require "packet.request"
+local request = require "packet.request"
 local withfile = require "util".withfile
+local ranges = require "util".ranges
 
-local function exchange(request)
-  local response = post(request):getbody()
+local function exchange(requestbody)
+  local response = post(requestbody):getbody()
   return packet.unpack(response)
 end
 
@@ -13,7 +15,7 @@ local function getsessionid()
   local login = config.login
   local password = config.password
   local deviceid = config.deviceid
-  local response = exchange(requests.Auth:pack(login, password, deviceid))
+  local response = exchange(request.Auth:pack(login, password, deviceid))
   local sessionid = response.sessionid
   return sessionid
 end
@@ -21,7 +23,7 @@ end
 local function getdeviceid(serialno)
   local login = config.login
   local password = config.password
-  local response = exchange(requests.Activate:pack(login, password, serialno))
+  local response = exchange(request.Activate:pack(login, password, serialno))
   local deviceid = response.deviceid
   return deviceid
 end
@@ -40,19 +42,31 @@ local function getandstoredeviceid(serialno)
 end
 
 local function listbooks(sessionid)
-  local response = exchange(requests.BookList:pack(sessionid))
+  local response = exchange(request.BookList:pack(sessionid))
   return response
 end
 
 local function getbook(sessionid, bookid)
-  local response = exchange(requests.Book:pack(sessionid, bookid))
+  local response = exchange(request.Book:pack(sessionid, bookid))
   return response[1]
 end
 
 local function getbookdetails(sessionid, bookid)
   local version = getbook(sessionid, bookid).version
-  local response = exchange(requests.BookDetails:pack(sessionid, bookid, version))
+  local response = exchange(request.BookDetails:pack(sessionid, bookid, version))
   return response
+end
+
+local function downloadbook(sessionid, bookid)
+  local bookdetails = getbookdetails(sessionid, bookid)
+  io.output():write("Downloading book " .. bookid .. " "):flush()
+  withfile(bookid .. ".mobi", "w")(function(file)
+    for from, to in ranges(bookdetails.size) do
+      get { { "range", string.format("bytes=%d-%d", from, to) } }:savetofile(file)
+      io.output():write("."):flush()
+    end
+  end)
+  io.output():write(" ok\n"):flush()
 end
 
 return {
@@ -62,4 +76,5 @@ return {
   listbooks = listbooks,
   getbook = getbook,
   getbookdetails = getbookdetails,
+  downloadbook = downloadbook,
 }

@@ -44,7 +44,19 @@ Test_flow = {
   test_get_book_details = function()
     local sessionid = flow.getsessionid()
     local details = flow.getbookdetails(sessionid, data.bookid)
-    print(details.size, details.url)
+    lu.assert_true(details.size > 0)
+    lu.assert_true(#details.url > 0)
+  end,
+
+  test_download_book = function()
+    local sessionid = flow.getsessionid()
+    local bookid = data.bookid
+    local filename = bookid .. ".mobi"
+    flow.downloadbook(sessionid, bookid)
+    local bookfile = io.open(filename, "r")
+    lu.assert_not_nil(bookfile)
+    bookfile:close() ---@diagnostic disable-line: need-check-nil
+    os.remove(filename)
   end,
 }
 
