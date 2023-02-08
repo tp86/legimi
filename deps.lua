@@ -1,3 +1,4 @@
 return {
   "http",
+  "argparse",
 }
