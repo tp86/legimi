@@ -5,6 +5,7 @@ local packet = require "packet"
 local request = require "packet.request"
 local withfile = require "util".withfile
 local ranges = require "util".ranges
+local formatbook = require "util".formatbook
 
 local function exchange(requestbody)
   local response = post(requestbody):getbody()
@@ -43,7 +44,9 @@ end
 
 local function listbooks(sessionid)
   local response = exchange(request.BookList:pack(sessionid))
-  return response
+  for _, book in ipairs(response) do
+    print(formatbook(book))
+  end
 end
 
 local function getbook(sessionid, bookid)
