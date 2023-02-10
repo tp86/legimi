@@ -75,9 +75,9 @@ end
 return {
   getsessionid = getsessionid,
   getdeviceid = getdeviceid,
-  deviceid = getandstoredeviceid,
-  listbooks = listbooks,
   getbook = getbook,
   getbookdetails = getbookdetails,
+  deviceid = getandstoredeviceid,
+  listbooks = listbooks,
   downloadbook = downloadbook,
 }

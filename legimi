@@ -1,4 +1,7 @@
 #!/usr/bin/env lua
 
 require "setup"
-require "main"
+local main = require "main"
+local args = require "argparser":parse()
+
+main(args)
