@@ -4,7 +4,6 @@ local get = require "http".get
 local packet = require "packet"
 local request = require "packet.request"
 local withfile = require "util".withfile
-local ranges = require "util".ranges
 local formatbook = require "util".formatbook
 
 local function exchange(requestbody)
@@ -63,11 +62,8 @@ end
 local function downloadbook(sessionid, bookid)
   local bookdetails = getbookdetails(sessionid, bookid)
   io.output():write("Downloading book " .. bookid .. " "):flush()
-  withfile(bookid .. ".mobi", "w")(function(file)
-    for from, to in ranges(bookdetails.size) do
-      get { { "range", string.format("bytes=%d-%d", from, to) } }:savetofile(file)
-      io.output():write("."):flush()
-    end
+  withfile(bookid .. ".mobi", "w+")(function(file)
+    get(bookdetails.url):savetofile(file)
   end)
   io.output():write(" ok\n"):flush()
 end
