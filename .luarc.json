@@ -10,8 +10,7 @@
     },
     "workspace": {
       "library": [
-        "./.luarocks/share/lua/5.4",
-        "lib"
+        "./.luarocks/share/lua/5.4"
       ]
     }
   }
