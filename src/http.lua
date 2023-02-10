@@ -18,15 +18,15 @@ local function request(url, method)
   return req
 end
 
-local url = require "config".url
+local apiurl = require "config".url
 
 local function post(data)
-  return request(url, "POST"):setbody(data):send()
+  return request(apiurl, "POST"):setbody(data):send()
 end
 
-local function get(headers)
-  local req = request(url, "GET")
-  for _, header in ipairs(headers) do
+local function get(url, headers)
+  local req = request(url)
+  for _, header in ipairs(headers or {}) do
     req.headers:append(table.unpack(header))
   end
   return req:send()
