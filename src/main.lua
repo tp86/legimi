@@ -1,8 +1,8 @@
 local flow = require "flow"
 
 local function withsessionid(func)
-  local sessionid = flow.getsessionid()
   return function(...)
+    local sessionid = flow.getsessionid()
     return func(sessionid, ...)
   end
 end
