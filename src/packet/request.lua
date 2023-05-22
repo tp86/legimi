@@ -54,16 +54,16 @@ local formats = {
 local bookrequest = {
   type = 26,
   serializer = ser.Sequence {
-    ser.RawByte, -- number of filters (always 1, see comment below)
+    ser.RawByte, -- number of filters
     ser.RawStr, -- session id
-    ser.Sequence { -- will work with only one filter
+    ser.Sequence {
       ser.RawByte, -- filter list type
       ser.RawShort, -- filter type
       ser.RawStr, -- filter argument
     }
   },
   pack = function(self, sessionid)
-    local filtercount = 1
+    local filtercount = #self.filter / 3
     return packrequest(self, { filtercount, sessionid, self.filter })
   end,
 }
@@ -83,10 +83,25 @@ local BookList = setmetatable({
 local Book = setmetatable({
   filter = {
     filterlisttypes.documentlist,
+    filtertypes.acceptedformats,
+    ser.ShortShort.pack(formats.mobi),
+    filterlisttypes.documentlist,
     filtertypes.idequal,
   },
+  serializer = ser.Sequence {
+    ser.RawByte, -- number of filters
+    ser.RawStr, -- session id
+    ser.Sequence {
+      ser.RawByte, -- filter list type
+      ser.RawShort, -- filter type
+      ser.RawStr, -- filter argument
+      ser.RawByte, -- filter list type
+      ser.RawShort, -- filter type
+      ser.RawStr, -- filter argument
+    }
+  },
   pack = function(self, sessionid, bookid)
-    self.filter[3] = ser.ShortLong.pack(bookid)
+    table.insert(self.filter, ser.ShortLong.pack(bookid))
     return bookrequest.pack(self, sessionid)
   end,
 }, bookrequestmt)
