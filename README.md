@@ -1,4 +1,8 @@
 # legimi
+
+> [!WARNING]
+> This project is no longer active, use [new version](https://github.com/tp86/legimi-go) written in Go.
+
 Unofficial Legimi ebook downloader for Kindle
 
 This is Legimi ebook downloader made for downloading ebooks for Kindle from [Legimi](https://www.legimi.pl/).
